@@ -15,8 +15,20 @@ import java.util.Map;
  */
 @SpringBootApplication
 public class DictExampleApplication {
-    public static void main(String[] args) { SpringApplication.run(DictExampleApplication.class, args); }
+    /**
+     * 启动包含独立内存数据库的真实示例。
+     *
+     * @param args 启动参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(DictExampleApplication.class, args);
+    }
 
+    /**
+     * 注册由业务管理的初始内存字典，不替代 Starter 的缓存实现。
+     *
+     * @return 示例加载器
+     */
     @Bean
     InMemoryDictLoader dictLoader() {
         InMemoryDictLoader loader = new InMemoryDictLoader();

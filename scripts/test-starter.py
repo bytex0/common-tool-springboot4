@@ -565,12 +565,25 @@ def test_dict(base, record):
     record("dict-code-and-text")
     api(base, "dict/status", "PUT", {"1": "已更新", "0": "停用"})
     require(api(base, "dict/sample")["stateText"] == "已更新", "dictionary replacement failed")
+    api(base, "dict/source", "PUT", {"1": "完整刷新", "0": "停用"})
+    require(api(base, "dict/sample")["stateText"] == "已更新", "source update bypassed explicit refresh")
     api(base, "dict/refresh", "POST")
-    require(api(base, "dict/sample")["stateText"] == "已更新", "full dictionary refresh failed")
+    require(api(base, "dict/sample")["stateText"] == "完整刷新", "full dictionary refresh failed")
     record("dict-refresh")
     unknown = api(base, "dict/sample", query={"status": "unknown"})
     require(unknown["state"] == "unknown" and "stateText" not in unknown, "unknown code changed or invented text")
     record("dict-unknown-code")
+    department = api(base, "dict/department", query={"code": "D1"})
+    require(department == {"code": "D1", "codeText": "Engineering"}, "table field fallback failed")
+    require(api(base, "dict/legacy", query={"value": "Engineering"}) == {"found": True, "text": "Engineering"},
+            "original four-argument lookup failed")
+    record("dict-table-field-and-legacy-lookup")
+    injected = "x' OR '1'='1"
+    require(api(base, "dict/department", query={"code": injected}) == {"code": injected}, "SQL input changed query semantics")
+    require(api(base, "dict/legacy", query={"value": injected}) == {"found": False}, "legacy lookup did not bind parameters")
+    api(base, "dict/status", "PUT", {"1": None}, expected=400)
+    require(api(base, "dict/sample")["stateText"] == "完整刷新", "invalid update destroyed cache")
+    record("dict-bound-parameters-and-invalid-update")
 
 
 def test_desensitize(base, record):
