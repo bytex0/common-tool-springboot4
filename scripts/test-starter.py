@@ -41,6 +41,7 @@ MODULES = {
     "idempotent": "idempotent-example",
     "ip2region": "ip2region-example",
     "sensitive-word": "sensitive-word-example",
+    "disruptor": "disruptor-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -127,6 +128,19 @@ def test_sensitive_word(base, record):
         require(status == expected and json.loads(body)["code"] == (0 if expected == 200 else expected),
                 "sensitive rejection policy failed")
     record("sensitive-rejection-and-bounds")
+
+
+def test_disruptor(base, record):
+    require(api(base, "disruptor/send", "POST", query={"value": 2})["total"] == 2, "consumer did not run")
+    api(base, "disruptor/send", "POST", query={"value": -1}, expected=409)
+    require(api(base, "disruptor/send", "POST", query={"value": 3})["total"] == 5, "consumer did not recover")
+    record("disruptor-consume-failure-recovery")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda _: api(base, "disruptor/send", "POST", query={"value": 1}), range(50)))
+    require(api(base, "disruptor/send", "POST", query={"value": 0})["total"] == 55, "concurrent messages lost")
+    record("disruptor-multiple-producers")
+    api(base, "disruptor/send", "POST", query={"queue": "missing", "value": 1}, expected=400)
+    record("disruptor-invalid-queue")
 
 
 def test_idempotent(base, peer, record):
@@ -713,6 +727,8 @@ def main():
                         test_ip2region(base, record)
                     elif args.starter == "sensitive-word":
                         test_sensitive_word(base, record)
+                    elif args.starter == "disruptor":
+                        test_disruptor(base, record)
                     elif args.starter == "local-cache":
                         test_local_cache(base, record)
                     elif args.starter == "docs":

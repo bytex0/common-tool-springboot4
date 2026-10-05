@@ -30,6 +30,7 @@
         <module>idempotent-example</module>
         <module>ip2region-example</module>
         <module>sensitive-word-example</module>
+        <module>disruptor-example</module>
     </modules>
 
     <properties>

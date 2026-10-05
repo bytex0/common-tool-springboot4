@@ -7,16 +7,18 @@
 | --- | --- | --- |
 | 1 | ip2region | 已完成并验证 |
 | 2 | sensitive-word | 已完成并验证 |
-| 3 | disruptor | 待迁移 |
+| 3 | disruptor | 已完成并验证 |
 | 4 | sftp | 待迁移 |
 | 5 | script | 待迁移 |
-| 6 | sse | 待迁移 |
+| 6 | dynamic-threadpool | 待迁移 |
 | 7 | mqtt | 待迁移 |
 | 8 | netty | 待迁移 |
 | 9 | xxl-job | 待迁移 |
 | 10 | resilience4j | 待迁移 |
 
 验证范围和有意保留的兼容性差异记录在各模块 README，未标记完成的能力不可视为已经验证。
+
+源码核查发现参考仓库 SSE 目录只有 target、没有源码，因此改选动态线程池。
 
 ## IP 归属地
 
@@ -27,3 +29,8 @@
 
 140 项 Java 测试通过，真实 HTTP 4 项通过。验证白名单一致性、原文索引、
 Unicode、词库原子更新及文本长度上限。API 收敛及不再隐式修改 DTO 的变化见模块 README。
+
+## Disruptor
+
+144 项 Java 测试通过，真实 HTTP 5 项通过。验证消费确认、异常恢复、多生产者、
+重复名称、满队列拒绝和生命周期；类型化消费者 Bean 替代旧反射注解，变化见模块 README。

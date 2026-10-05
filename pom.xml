@@ -36,6 +36,7 @@
         <module>idempotent-spring-boot-starter</module>
         <module>ip2region-spring-boot-starter</module>
         <module>sensitive-word-spring-boot-starter</module>
+        <module>disruptor-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 
@@ -52,10 +53,12 @@
         <guava.version>33.7.2-jre</guava.version>
         <ip2region.version>2.7.0</ip2region.version>
         <ahocorasick.version>0.6.3</ahocorasick.version>
+        <disruptor.version>4.0.0</disruptor.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency><groupId>com.lmax</groupId><artifactId>disruptor</artifactId><version>${disruptor.version}</version></dependency>
             <dependency><groupId>org.ahocorasick</groupId><artifactId>ahocorasick</artifactId><version>${ahocorasick.version}</version></dependency>
             <dependency><groupId>org.lionsoul</groupId><artifactId>ip2region</artifactId><version>${ip2region.version}</version></dependency>
             <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>${guava.version}</version></dependency>
