@@ -1,5 +1,7 @@
 # 本地缓存 Starter 示例
 
+补充 `GET /api/cache/type-stats`，验证与原工厂类简单名根键一致的十三项统计数据。
+
 示例真实依赖 `local-cache-spring-boot-starter`，通过自动配置注册 `DemoCache`。无需外部中间件，默认只绑定 `127.0.0.1:18082`。
 
 `DemoCache` 最大 100 项，访问后 2 秒过期，仅用于演示短期缓存，业务应用自行选择容量和过期时间。

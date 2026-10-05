@@ -44,6 +44,10 @@
 
 ## 兼容变化
 
+本轮完整对照见 [MIGRATION.md](MIGRATION.md)。增加 `getCachesByType()` 类型视图和
+`getCacheStatsByClassName()` 原类名统计视图。初始化使用显式锁，递归创建立即失败，关闭后不允许重新发布工厂注册表。
+库和示例均接入包含测试源码的 Checkstyle。
+
 - 根包改为 `io.github.bytex0.cache`。
 - 原工厂的静态方法改为实例方法，请注入工厂，不再使用 `LocalCaffeineCacheFactory.getCache(...)`。
 - `getAllCaches()` 和统计的键改为 Bean 名称，防止同类型或同简单类名实例覆盖。

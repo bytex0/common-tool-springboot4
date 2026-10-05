@@ -32,6 +32,9 @@ class LocalCacheConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(LocalCacheConfiguration.class));
 
+    /**
+     * 自动配置注册原缓存，注册快照不允许外部修改。
+     */
     @Test
     void shouldRegisterImportsAndFactoryByDefault() {
         assertThat(ImportCandidates.load(AutoConfiguration.class, getClass().getClassLoader()))
@@ -42,10 +45,15 @@ class LocalCacheConfigurationTest {
             assertThat(factory.getCache(ConfiguredCache.class)).isSameAs(context.getBean("demo"));
             assertThat(context.getBean(ConfiguredCache.class).initializations).hasValue(1);
             assertThat(factory.getCache("unknown")).isNull();
+            assertThat(factory.getCachesByType())
+                    .containsEntry(ConfiguredCache.class, context.getBean("demo", ConfiguredCache.class));
             assertThatThrownBy(() -> factory.getAllCaches().clear()).isInstanceOf(UnsupportedOperationException.class);
         });
     }
 
+    /**
+     * 配置关闭和依赖缺失时均不创建缓存工厂。
+     */
     @Test
     void shouldDisableFactoryAndBackOffWithoutCaffeine() {
         runner.withPropertyValues("local-cache.enabled=false")
@@ -54,6 +62,9 @@ class LocalCacheConfigurationTest {
                 .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(LocalCaffeineCacheFactory.class));
     }
 
+    /**
+     * 用户提供的工厂不会被默认实现覆盖。
+     */
     @Test
     void shouldRespectCustomFactory() {
         LocalCaffeineCacheFactory custom = new LocalCaffeineCacheFactory(new DefaultListableBeanFactory());
@@ -63,9 +74,15 @@ class LocalCacheConfigurationTest {
         });
     }
 
+    /**
+     * 缓存在 Bean 后处理完成之后才初始化。
+     */
     @Test
     void shouldRegisterAfterBeanPostProcessing() {
         runner.withBean("cachePostProcessor", BeanPostProcessor.class, () -> new BeanPostProcessor() {
+            /**
+             * {@inheritDoc}
+             */
             @Override
             public Object postProcessAfterInitialization(Object bean, String beanName) {
                 if (bean instanceof ConfiguredCache cache) {
@@ -77,6 +94,9 @@ class LocalCacheConfigurationTest {
                 .run(context -> assertThat(context.getBean(ConfiguredCache.class).initializations).hasValue(1));
     }
 
+    /**
+     * 同类型多实例按名称保留，类型视图明确报告歧义。
+     */
     @Test
     void shouldKeepSameTypeCachesByNameAndRejectAmbiguousTypeLookup() {
         runner.withBean("first", ConfiguredCache.class, this::cache)
@@ -86,9 +106,14 @@ class LocalCacheConfigurationTest {
                     assertThat(factory.getCache("first")).isNotSameAs(factory.getCache("second"));
                     assertThatThrownBy(() -> factory.getCache(ConfiguredCache.class))
                             .isInstanceOf(IllegalStateException.class);
+                    assertThatThrownBy(factory::getCachesByType).isInstanceOf(IllegalStateException.class);
+                    assertThatThrownBy(factory::getCacheStatsByClassName).isInstanceOf(IllegalStateException.class);
                 });
     }
 
+    /**
+     * 独立上下文不共享状态，关闭后的工厂不能重新发布注册表。
+     */
     @Test
     void shouldIsolateContextsAndClearRegistryOnClose() {
         AtomicReference<LocalCaffeineCacheFactory> closed = new AtomicReference<>();
@@ -103,10 +128,14 @@ class LocalCacheConfigurationTest {
                 closed.set(second.getBean(LocalCaffeineCacheFactory.class));
             });
             assertThat(closed.get().getAllCaches()).isEmpty();
+            assertThatThrownBy(closed.get()::afterSingletonsInstantiated).isInstanceOf(IllegalStateException.class);
             assertThat(firstCache.get("key")).isEqualTo("first");
         });
     }
 
+    /**
+     * 原十三项统计保留且不可修改，类名视图和命名视图内容相同。
+     */
     @Test
     void shouldExposeImmutableActualStatistics() {
         runner.withBean("demo", ConfiguredCache.class, this::cache).run(context -> {
@@ -116,6 +145,8 @@ class LocalCacheConfigurationTest {
             LocalCaffeineCacheFactory factory = context.getBean(LocalCaffeineCacheFactory.class);
             assertThat(factory.getCacheStats().get("demo")).containsEntry("loadSuccessCount", 1L)
                     .containsEntry("hitCount", 1L).containsEntry("missCount", 1L).containsEntry("hitRate", "50.00%");
+            assertThat(factory.getCacheStatsByClassName().get("ConfiguredCache"))
+                    .isEqualTo(factory.getCacheStats().get("demo"));
             assertThatThrownBy(() -> factory.getCacheStats().get("demo").clear())
                     .isInstanceOf(UnsupportedOperationException.class);
             factory.clearAllCaches();
@@ -123,6 +154,11 @@ class LocalCacheConfigurationTest {
         });
     }
 
+    /**
+     * 创建具有确定过期和容量的测试缓存。
+     *
+     * @return 未使用的缓存
+     */
     private ConfiguredCache cache() {
         return new ConfiguredCache(Duration.ofMinutes(1), 10);
     }

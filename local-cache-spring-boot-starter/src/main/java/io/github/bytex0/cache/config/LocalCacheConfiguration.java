@@ -20,6 +20,12 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnProperty(prefix = "local-cache", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class LocalCacheConfiguration {
 
+    /**
+     * 注册可由用户替换的实例级缓存工厂。
+     *
+     * @param beanFactory 当前容器
+     * @return 缓存工厂
+     */
     @Bean
     @ConditionalOnMissingBean
     public LocalCaffeineCacheFactory localCaffeineCacheFactory(ListableBeanFactory beanFactory) {

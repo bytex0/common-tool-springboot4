@@ -20,21 +20,37 @@ public class DemoCache extends AbstractLocalCaffeineCache<String, String> {
      */
     private final AtomicInteger loadCount = new AtomicInteger();
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected Duration getExpireAfterAccess() {
         return Duration.ofSeconds(2);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected long getMaximumSize() {
         return 100;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected int getInitialCapacity() {
         return 16;
     }
 
+    /**
+     * 在缓存缺失时加载内容并增加业务加载计数。
+     *
+     * @param key 缓存键
+     * @param value 缺失时返回的内容
+     * @return 最终缓存值
+     */
     public String load(String key, String value) {
         return get(key, () -> {
             loadCount.incrementAndGet();
@@ -42,6 +58,11 @@ public class DemoCache extends AbstractLocalCaffeineCache<String, String> {
         });
     }
 
+    /**
+     * 返回实际业务加载次数，不会因清空条目而重置。
+     *
+     * @return 累计加载次数
+     */
     public int getLoadCount() {
         return loadCount.get();
     }

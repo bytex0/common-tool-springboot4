@@ -36,31 +36,54 @@ class ConfiguredCache extends AbstractLocalCaffeineCache<String, String> {
      */
     final AtomicInteger initializations = new AtomicInteger();
 
+    /**
+     * 配置实际缓存的时长和容量。
+     *
+     * @param expiry 访问后过期时长
+     * @param maximumSize 条目上限
+     */
     ConfiguredCache(Duration expiry, long maximumSize) {
         this.expiry = expiry;
         this.maximumSize = maximumSize;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected Duration getExpireAfterAccess() {
         return expiry;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected long getMaximumSize() {
         return maximumSize;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected int getInitialCapacity() {
         return 1;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     protected Ticker getTicker() {
         return clock::get;
     }
 
+    /**
+     * 记录初始化次数并创建真实缓存。
+     *
+     * @return 配置后的 Caffeine 缓存
+     */
     @Override
     protected Cache<String, String> createCache() {
         initializations.incrementAndGet();

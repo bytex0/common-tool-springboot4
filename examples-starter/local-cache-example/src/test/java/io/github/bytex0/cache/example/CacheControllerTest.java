@@ -36,16 +36,30 @@ class CacheControllerTest {
      */
     private final LocalCaffeineCacheFactory factory;
 
+    /**
+     * 注入完整应用中的 MVC 与缓存工厂。
+     *
+     * @param mvc HTTP 模拟入口
+     * @param factory 实际缓存工厂
+     */
     CacheControllerTest(MockMvc mvc, LocalCaffeineCacheFactory factory) {
         this.mvc = mvc;
         this.factory = factory;
     }
 
+    /**
+     * 每个用例清空数据，累计统计不重置。
+     */
     @BeforeEach
     void clearCache() {
         factory.clearAllCaches();
     }
 
+    /**
+     * 验证新增、读取和删除操作使用同一个注册缓存。
+     *
+     * @throws Exception MVC 请求失败
+     */
     @Test
     void shouldUseActualRegisteredCacheForCrud() throws Exception {
         assertThat(factory.getCache(DemoCache.class)).isNotNull();
@@ -58,6 +72,11 @@ class CacheControllerTest {
                 .andExpect(jsonPath("$.data.present").value(false));
     }
 
+    /**
+     * 验证缺失加载复用结果及两种统计视图。
+     *
+     * @throws Exception MVC 请求失败
+     */
     @Test
     void shouldReuseLoadedValueAndReportStatistics() throws Exception {
         mvc.perform(get("/api/cache/load").param("key", "key").param("value", "first"))
@@ -66,8 +85,15 @@ class CacheControllerTest {
                 .andExpect(jsonPath("$.data.value").value("first"));
         mvc.perform(get("/api/cache/stats")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.demoCache.hitCount").isNumber());
+        mvc.perform(get("/api/cache/type-stats")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.DemoCache.hitCount").isNumber());
     }
 
+    /**
+     * 清空接口移除缓存数据但不销毁注册关系。
+     *
+     * @throws Exception MVC 请求失败
+     */
     @Test
     void shouldClearAllCaches() throws Exception {
         factory.getCache(DemoCache.class).put("key", "value");
@@ -75,6 +101,11 @@ class CacheControllerTest {
         mvc.perform(get("/api/cache/stats")).andExpect(jsonPath("$.data.demoCache.size").value(0));
     }
 
+    /**
+     * 空白键返回 400，不被当成有效业务键。
+     *
+     * @throws Exception MVC 请求失败
+     */
     @Test
     void shouldRejectBlankKey() throws Exception {
         mvc.perform(get("/api/cache/entry").param("key", " "))

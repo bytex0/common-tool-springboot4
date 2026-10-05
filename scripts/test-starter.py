@@ -611,6 +611,10 @@ def test_local_cache(base, record):
         require(stats["hitCount"] >= 2 and stats["missCount"] >= 2, "cache statistics were not recorded")
         require(stats["loadSuccessCount"] == 1, "incorrect successful load count")
         record("cache-real-statistics")
+        typed = api(base, "cache/type-stats")["DemoCache"]
+        require(typed["hitCount"] == stats["hitCount"] and typed["loadSuccessCount"] == 1,
+                "class-name statistics differ from named statistics")
+        record("cache-original-type-statistics")
 
         api(base, "cache/entry", "PUT", query={"key": "expiry", "value": "short-lived"})
         time.sleep(2.3)
