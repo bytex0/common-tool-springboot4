@@ -38,3 +38,5 @@ jobs:
         run: python3 scripts/test-starter.py desensitize --skip-build
       - name: Verify dictionary starter HTTP API
         run: python3 scripts/test-starter.py dict --skip-build
+      - name: Verify multi Redis starter HTTP API
+        run: python3 scripts/test-starter.py multi-redis --skip-build

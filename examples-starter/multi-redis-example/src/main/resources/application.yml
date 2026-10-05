@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: multi-redis-example
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18088}
+multi-redis:
+  enabled: true
+  primary: main
+  clients:
+    main:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+    secondary:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+      database: 1
+      codec: JSON
+    cluster:
+      enabled: ${TEST_REDIS_CLUSTER_ENABLED:false}
+      mode: CLUSTER
+      nodes: ${TEST_REDIS_CLUSTER_NODES:}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

@@ -7,9 +7,11 @@ import hashlib
 import io
 import json
 import os
+import random
 from pathlib import Path
 import re
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -32,6 +34,7 @@ MODULES = {
     "i18n": "i18n-example",
     "desensitize": "desensitize-example",
     "dict": "dict-example",
+    "multi-redis": "multi-redis-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -91,6 +94,105 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_multi_redis(base, record):
+    require(set(api(base, "redis/names")) == {"main", "secondary", "cluster"}, "named clients missing")
+    key = "test-" + uuid.uuid4().hex
+    data = {"text": "中文", "count": 1, "@class": "java.lang.Runtime"}
+    api(base, "redis/value", "PUT", "main-value", {"client": "main", "key": key})
+    api(base, "redis/value", "PUT", data, {"client": "secondary", "key": key})
+    require(api(base, "redis/value", query={"client": "main", "key": key})["value"] == "main-value", "database isolation failed")
+    require(api(base, "redis/value", query={"client": "secondary", "key": key})["value"] == data, "JSON roundtrip failed")
+    record("redis-named-isolation-and-json")
+    for index in range(12):
+        cluster_key = key + "-" + str(index)
+        api(base, "redis/value", "PUT", cluster_key, {"client": "cluster", "key": cluster_key})
+        require(api(base, "redis/value", query={"client": "cluster", "key": cluster_key})["value"] == cluster_key,
+                "cluster routing failed")
+        api(base, "redis/value", "DELETE", query={"client": "cluster", "key": cluster_key})
+    record("redis-cluster-routing")
+    api(base, "redis/value", "PUT", "expires", {"client": "main", "key": key, "ttl": 1})
+    time.sleep(1.2)
+    require(not api(base, "redis/value", query={"client": "main", "key": key})["present"], "Redis TTL did not expire")
+    api(base, "redis/value", query={"client": "unknown", "key": key}, expected=400)
+    api(base, "redis/value", "DELETE", query={"client": "secondary", "key": key})
+    require(not api(base, "redis/value", query={"client": "secondary", "key": key})["present"], "Redis deletion failed")
+    record("redis-ttl-validation-and-cleanup")
+
+
+def redis_ports(count):
+    for _ in range(100):
+        ports = random.SystemRandom().sample(range(20000, 40000), count)
+        required = ports + [port + 10000 for port in ports[1:]]
+        if len(set(required)) != len(required):
+            continue
+        sockets = []
+        try:
+            for port in required:
+                listener = socket.socket()
+                sockets.append(listener)
+                listener.bind(("127.0.0.1", port))
+            return ports
+        except OSError:
+            pass
+        finally:
+            for listener in sockets:
+                listener.close()
+    raise AssertionError("unable to reserve Redis test ports")
+
+
+def start_redis(resources, environment, cluster):
+    ports = redis_ports(4 if cluster else 1)
+    name = "common-tool-test-" + uuid.uuid4().hex
+    resources.append(name)
+    commands = [f"redis-server --port {ports[0]} --protected-mode no --save '' --appendonly no --daemonize yes"]
+    if cluster:
+        for index, port in enumerate(ports[1:]):
+            commands.append(
+                f"redis-server --port {port} --protected-mode no --save '' --appendonly no --daemonize yes "
+                f"--cluster-enabled yes --cluster-config-file /tmp/n{index}.conf "
+                f"--cluster-node-timeout 5000 --cluster-announce-ip 127.0.0.1 "
+                f"--cluster-announce-port {port} --cluster-announce-bus-port {port + 10000}")
+        for port in ports[1:]:
+            commands.append(f"until redis-cli -p {port} PING >/dev/null 2>&1; do sleep 0.1; done")
+        commands.append("redis-cli --cluster create " + " ".join(f"127.0.0.1:{port}" for port in ports[1:])
+                        + " --cluster-replicas 0 --cluster-yes")
+    commands.append("exec tail -f /dev/null")
+    command = ["docker", "run", "-d", "--name", name, "--label", "common-tool.test=true"]
+    for port in ports:
+        command.extend(["-p", f"127.0.0.1:{port}:{port}"])
+    command.extend([os.environ.get("TEST_REDIS_IMAGE", "redis:8-alpine"), "sh", "-ec", "\n".join(commands)])
+    subprocess.run(command, check=True, capture_output=True, timeout=120)
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        state = subprocess.run(["docker", "inspect", "--format", "{{.State.Running}}", name],
+                               capture_output=True, timeout=10)
+        if state.returncode != 0 or state.stdout.strip() != b"true":
+            break
+        probe = subprocess.run(["docker", "exec", name, "redis-cli", "-p", str(ports[0]), "PING"],
+                               capture_output=True, timeout=10)
+        ready = probe.returncode == 0 and b"PONG" in probe.stdout
+        if ready and cluster:
+            probe = subprocess.run(["docker", "exec", name, "redis-cli", "-p", str(ports[1]), "CLUSTER", "INFO"],
+                                   capture_output=True, timeout=10)
+            ready = probe.returncode == 0 and b"cluster_state:ok" in probe.stdout
+        if ready:
+            environment["TEST_REDIS_ADDRESS"] = f"redis://127.0.0.1:{ports[0]}"
+            environment["TEST_REDIS_CLUSTER_ENABLED"] = "true" if cluster else "false"
+            environment["TEST_REDIS_CLUSTER_NODES"] = ",".join(f"redis://127.0.0.1:{port}" for port in ports[1:])
+            return
+        time.sleep(0.3)
+    logs = subprocess.run(["docker", "logs", "--tail", "30", name], capture_output=True, timeout=10)
+    print(logs.stdout.decode(errors="replace") + logs.stderr.decode(errors="replace"), file=sys.stderr)
+    raise AssertionError("dedicated Redis test service did not become ready")
+
+
+def stop_services(resources):
+    for name in list(resources):
+        result = subprocess.run(["docker", "rm", "-fv", name], capture_output=True, timeout=20)
+        require(result.returncode == 0 or b"No such container" in result.stderr, "Redis test container cleanup failed")
+        resources.remove(name)
 
 
 def test_dict(base, record):
@@ -396,6 +498,7 @@ def main():
     report_path = module / "target" / "api-test-report.json"
     report = {"starter": args.starter, "passed": False, "checks": []}
     process = None
+    resources = []
     started = time.monotonic()
 
     def record(name):
@@ -422,6 +525,9 @@ def main():
         if args.starter == "docs":
             environment["DOCS_USERNAME"] = "test-" + uuid.uuid4().hex
             environment["DOCS_PASSWORD"] = uuid.uuid4().hex
+        if args.starter == "multi-redis":
+            start_redis(resources, environment, cluster=True)
+            record("redis-test-service-ready")
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
             log_path = Path(temporary) / "application.log"
             with log_path.open("w") as log:
@@ -447,11 +553,16 @@ def main():
                         test_desensitize(base, record)
                     elif args.starter == "dict":
                         test_dict(base, record)
+                    elif args.starter == "multi-redis":
+                        test_multi_redis(base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:
                     stop_process(process)
         record("application-stopped")
+        if resources:
+            stop_services(resources)
+            record("redis-test-service-cleanup")
         report["passed"] = True
         print(f"PASS {args.starter}: {len(report['checks'])} checks", flush=True)
         return 0
@@ -463,6 +574,13 @@ def main():
         return 1
     finally:
         stop_process(process)
+        if resources:
+            try:
+                stop_services(resources)
+            except Exception:
+                report["passed"] = False
+                report["cleanupFailed"] = True
+                print("FAIL dedicated Redis test service cleanup", file=sys.stderr)
         report["durationSeconds"] = round(time.monotonic() - started, 2)
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report, indent=2) + "\n")
