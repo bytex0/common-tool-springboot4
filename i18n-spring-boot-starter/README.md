@@ -1,6 +1,6 @@
 # 国际化 Starter
 
-引入 `io.github.bytex0:i18n-spring-boot-starter`，配置 `i18n.enabled=true`。默认关闭，核心可用于非Web应用。
+引入 `io.github.bytex0:i18n-spring-boot4-starter`，配置 `i18n.enabled=true`。默认关闭，核心可用于非Web应用。
 
 ```yaml
 i18n:

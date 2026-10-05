@@ -9,7 +9,7 @@
 ```xml
 <dependency>
     <groupId>io.github.bytex0</groupId>
-    <artifactId>local-cache-spring-boot-starter</artifactId>
+    <artifactId>local-cache-spring-boot4-starter</artifactId>
 </dependency>
 ```
 

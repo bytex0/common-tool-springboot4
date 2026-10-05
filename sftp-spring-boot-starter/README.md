@@ -1,6 +1,6 @@
 # SFTP
 
-依赖 `io.github.bytex0:sftp-spring-boot-starter`。使用维护中的 mwiede JSch 2.28.7 和 Commons Pool。
+依赖 `io.github.bytex0:sftp-spring-boot4-starter`。使用维护中的 mwiede JSch 2.28.7 和 Commons Pool。
 配置 `sftp-pool.enable=true`、`host`、`port`、`username`、`known-hosts` 及 `password` / `private-key` 二选一。
 主机公钥必须预先通过可信渠道确认，不提供关闭校验的开关。配置类不输出密码。
 

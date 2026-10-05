@@ -5,7 +5,7 @@
 ```xml
 <dependency>
     <groupId>io.github.bytex0</groupId>
-    <artifactId>excel-spring-boot-starter</artifactId>
+    <artifactId>excel-spring-boot4-starter</artifactId>
 </dependency>
 ```
 

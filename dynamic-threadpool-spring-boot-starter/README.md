@@ -1,6 +1,6 @@
 # 动态线程池
 
-依赖 `io.github.bytex0:dynamic-threadpool-spring-boot-starter`。
+依赖 `io.github.bytex0:dynamic-threadpool-spring-boot4-starter`。
 通过 `dynamic-threadpool.pools.<name>.core/max/capacity` 定义命名池，
 注入 `ThreadPoolRegistry` 调用 `submit(name, Callable)`、`resize(name, core, max)`、`stats(name)`。
 无配置不创建池；`dynamic-threadpool.enabled=false` 可关闭。

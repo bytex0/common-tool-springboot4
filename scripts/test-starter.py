@@ -817,9 +817,12 @@ def main():
         if args.starter == "oss":
             require(os.environ.get("OSS_ACCESS_KEY") and os.environ.get("OSS_ACCESS_SECRET"),
                     "OSS_ACCESS_KEY and OSS_ACCESS_SECRET environment variables are required")
+        subprocess.run([sys.executable, str(ROOT / "scripts/check-coordinates.py")], cwd=ROOT, check=True)
         if not args.skip_build:
             subprocess.run(["mvn", "--batch-mode", "--no-transfer-progress", "clean", "verify"],
                            cwd=ROOT, check=True)
+        subprocess.run([sys.executable, str(ROOT / "scripts/check-coordinates.py"), "--built-jars"],
+                       cwd=ROOT, check=True)
         version = ET.parse(ROOT / "pom.xml").findtext("{http://maven.apache.org/POM/4.0.0}version")
         jar = module / "target" / f"{MODULES[args.starter]}-{version}.jar"
         require(jar.is_file(), "example JAR is missing; run without --skip-build")

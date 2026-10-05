@@ -32,7 +32,10 @@
 - 主代码与测试目录分别使用 `src/main/java/io/github/bytex0`、`src/test/java/io/github/bytex0`。
 - 移动包名时同时调整 `package`、`import`、测试、反射类名及自动配置注册资源。
 - Java 基线为 21，Spring Boot 基线及构建配置以根 `pom.xml` 为准。
-- 各 Starter 保持独立，使用 `xxx-spring-boot-starter` 命名，不强迫消费方引入无关中间件。
+- 各 Starter 保持独立，Maven artifactId 统一使用 `xxx-spring-boot4-starter`，不得发布或引用本仓库旧的 `xxx-spring-boot-starter` 坐标。
+- 既有源码目录保留历史名称，Maven modules 填写实际目录；新增 Starter 目录与新 artifactId 一致。目录名不等于依赖坐标。
+- 命名规则仅适用于 `io.github.bytex0` 的本仓库 Starter。Spring 官方、第三方依赖、已带 4 的父工程/BOM，以及不发布的示例模块不得批量误改。
+- 不强迫消费方引入无关中间件。
 - 新增 Starter 同时更新根 POM 的 `modules` 和独立 BOM 的组件版本管理。
 - Spring、Jackson、Lombok、JUnit 和构建插件版本优先由 Boot 统一管理，第三方版本集中在根 POM 管理。
 - BOM 不继承根工程，避免循环导入；不得覆盖消费方选用的 Boot 版本。
@@ -158,6 +161,7 @@
 - 外部服务集成测试需显式启用。仅创建和清理本次测试专用资源，不修改已有业务桶、对象或访问策略。
 - 新增 Starter 至少测试自动装配、关闭开关、用户 Bean 覆盖及关键操作。
 - 普通构建和 CI 不依赖本地中间件、GPG 或发布凭据。
+- 坐标修改后执行 `python3 scripts/check-coordinates.py`；全量构建后再执行 `python3 scripts/check-coordinates.py --built-jars`，检查 BOM、示例依赖及普通库 JAR。坐标规则测试入口为 `python3 -m unittest discover -s scripts -p 'test_check_coordinates.py'`。
 - 变更后运行适当测试；包名、父工程、BOM 或跨模块变更后运行全量验证：
 
 ```bash

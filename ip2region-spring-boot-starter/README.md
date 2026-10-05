@@ -1,6 +1,6 @@
 # IP 归属地
 
-依赖 `io.github.bytex0:ip2region-spring-boot-starter`。使用 ip2region 2.7 的 IPv4 XDB 引擎。
+依赖 `io.github.bytex0:ip2region-spring-boot4-starter`。使用 ip2region 2.7 的 IPv4 XDB 引擎。
 显式配置 `ip2region.enabled=true` 和 `ip2region.db-path`（文件路径或 `classpath:`）后注入 `Ip2RegionTemplate` 调用 `search(ip)`。
 库不捆绑数据、不联网更新；生产数据库由应用维护。默认文件上限 64 MiB，可配置 `max-database-bytes`，硬上限 256 MiB。
 

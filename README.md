@@ -6,6 +6,9 @@
 
 本项目 Maven `groupId` 和 Java 根包名统一为 `io.github.bytex0`，源码目录对应 `io/github/bytex0`。
 
+所有本项目 Starter 的 artifactId 已统一为 `*-spring-boot4-starter`。
+既有目录名不变，依赖坐标不能使用目录名中的旧后缀；完整映射见 [坐标清单](docs/COORDINATES.md)。
+
 当前有 **18 个 Starter 库模块进入构建**，不代表已经完整迁移。复核发现原功能删减、API 兼容性和注释规范等问题，暂停新增模块，先按 [迁移审查与整改清单](docs/MIGRATION-AUDIT.md) 补齐。历史测试结果保留在批次记录中，不能作为原功能完整覆盖的证明。
 
 ## 技术基线
@@ -106,7 +109,7 @@ mvn -pl examples-starter/common-tool-example spring-boot:run
 <dependencies>
     <dependency>
         <groupId>io.github.bytex0</groupId>
-        <artifactId>common-tool-spring-boot-starter</artifactId>
+        <artifactId>common-tool-spring-boot4-starter</artifactId>
     </dependency>
 </dependencies>
 ```

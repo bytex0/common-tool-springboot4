@@ -4,7 +4,7 @@
     <parent><groupId>io.github.bytex0</groupId><artifactId>examples-starter</artifactId><version>4.0.0-SNAPSHOT</version></parent>
     <artifactId>dynamic-threadpool-example</artifactId>
     <dependencies>
-        <dependency><groupId>io.github.bytex0</groupId><artifactId>dynamic-threadpool-spring-boot-starter</artifactId></dependency>
+        <dependency><groupId>io.github.bytex0</groupId><artifactId>dynamic-threadpool-spring-boot4-starter</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-actuator</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc-test</artifactId><scope>test</scope></dependency>

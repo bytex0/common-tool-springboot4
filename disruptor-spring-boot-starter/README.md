@@ -1,6 +1,6 @@
 # Disruptor
 
-依赖 `io.github.bytex0:disruptor-spring-boot-starter`，声明 `MessageHandler<T>` Bean，
+依赖 `io.github.bytex0:disruptor-spring-boot4-starter`，声明 `MessageHandler<T>` Bean，
 实现 `name()`、`type()` 和 `handle(message)`；注入 `DisruptorTemplate`，调用 `send(name, message)`。
 返回的 `CompletableFuture<Void>` 表示实际消费成功或失败，不只表示入队。队列满立即抛出拒绝异常。
 配置 `disruptor.enabled=false` 关闭；`buffer-size` 默认 1024，必须是 2 至 1048576 的二次幂。

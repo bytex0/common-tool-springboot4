@@ -1,6 +1,6 @@
 # 受信脚本
 
-依赖 `io.github.bytex0:script-spring-boot-starter`，设置 `script.enabled=true`，
+依赖 `io.github.bytex0:script-spring-boot4-starter`，设置 `script.enabled=true`，
 注入 `ScriptService` 调用 `execute("groovy", source, parameters)`。只允许业务提供受信源代码，
 不能将用户提交的源代码直接交给此 API。
 

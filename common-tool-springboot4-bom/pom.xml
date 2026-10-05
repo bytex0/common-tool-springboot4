@@ -20,38 +20,38 @@
 
     <dependencyManagement>
         <dependencies>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>dynamic-threadpool-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>script-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>sftp-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>disruptor-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>sensitive-word-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>ip2region-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>idempotent-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>rate-limiter-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>lock-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>multi-redis-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>dict-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>desensitize-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>i18n-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
-            <dependency><groupId>io.github.bytex0</groupId><artifactId>excel-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>dynamic-threadpool-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>script-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>sftp-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>disruptor-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>sensitive-word-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>ip2region-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>idempotent-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>rate-limiter-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>lock-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>multi-redis-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>dict-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>desensitize-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>i18n-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>excel-spring-boot4-starter</artifactId><version>${common-tool.version}</version></dependency>
             <dependency>
                 <groupId>io.github.bytex0</groupId>
-                <artifactId>docs-spring-boot-starter</artifactId>
+                <artifactId>docs-spring-boot4-starter</artifactId>
                 <version>${common-tool.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.bytex0</groupId>
-                <artifactId>local-cache-spring-boot-starter</artifactId>
+                <artifactId>local-cache-spring-boot4-starter</artifactId>
                 <version>${common-tool.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.bytex0</groupId>
-                <artifactId>oss-spring-boot-starter</artifactId>
+                <artifactId>oss-spring-boot4-starter</artifactId>
                 <version>${common-tool.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.github.bytex0</groupId>
-                <artifactId>common-tool-spring-boot-starter</artifactId>
+                <artifactId>common-tool-spring-boot4-starter</artifactId>
                 <version>${common-tool.version}</version>
             </dependency>
         </dependencies>

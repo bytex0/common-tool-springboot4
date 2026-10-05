@@ -1,6 +1,6 @@
 # 敏感词
 
-依赖 `io.github.bytex0:sensitive-word-spring-boot-starter`，注入 `SensitiveWordService`。
+依赖 `io.github.bytex0:sensitive-word-spring-boot4-starter`，注入 `SensitiveWordService`。
 配置 `sensitive-word.words`、`white-list`、`dict-paths`（UTF-8 `classpath:` 或 `file:`）。
 `enabled=false` 关闭。默认无词库，应用自行维护业务词库，不联网加载。
 提供 `findAll(text, longest)`、`contains`、`replace`、`reject`、`replaceWords`、`addWord`、`removeWord`。

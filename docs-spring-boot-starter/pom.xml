@@ -3,8 +3,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent><groupId>io.github.bytex0</groupId><artifactId>common-tool-springboot4</artifactId><version>4.0.0-SNAPSHOT</version></parent>
-    <artifactId>docs-spring-boot-starter</artifactId>
-    <name>docs-spring-boot-starter</name>
+    <artifactId>docs-spring-boot4-starter</artifactId>
+    <name>docs-spring-boot4-starter</name>
     <description>Springdoc 3 接口文档与文档访问保护</description>
     <dependencies>
         <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><scope>provided</scope></dependency>

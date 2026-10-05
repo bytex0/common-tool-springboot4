@@ -1,6 +1,6 @@
 # 接口文档 Starter
 
-使用 Springdoc 3.0.x 对应 Spring Boot 4.0.x，替换旧 Knife4j Boot 3 集成。引入 `io.github.bytex0:docs-spring-boot-starter`，Web 应用显式引入 `spring-boot-starter-webmvc`。
+使用 Springdoc 3.0.x 对应 Spring Boot 4.0.x，替换旧 Knife4j Boot 3 集成。引入 `io.github.bytex0:docs-spring-boot4-starter`，Web 应用显式引入 `spring-boot-starter-webmvc`。
 
 ```yaml
 swagger:

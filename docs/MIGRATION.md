@@ -82,7 +82,9 @@ OSS 迁移时重新读取的源模块已是 `io.github.archer099:common-tool:2.5
 | 6：文件与外部服务 | `sftp`、`robot-message`、`script`、`ffmpeg` | SDK/JDK 21 兼容、资源关闭、可选依赖及外部服务测试 |
 | 单独评估 | `push` | 原项目未启用，先确认是否继续维护 |
 
-除表中明确带版本的名称外，其余模块均省略了 `-spring-boot-starter` 后缀。原 `mybatis-plus-spring3-boot-starter` 迁入时建议改为 `mybatis-plus-spring4-boot-starter`，待对应依赖兼容性核实后再加入工程。
+表格中的原模块名称沿用参考仓库命名。迁入本仓库的 Starter 坐标统一使用 `-spring-boot4-starter` 后缀。
+原 `mybatis-plus-spring3-boot-starter` 迁入时应使用 `mybatis-plus-spring-boot4-starter`，
+待对应依赖兼容性核实后再加入工程。
 
 ## 必须逐项核对
 

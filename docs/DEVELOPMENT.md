@@ -2,7 +2,7 @@
 
 ## 模块边界
 
-1. 延续原项目扁平化的 `xxx-spring-boot-starter` 命名，每个 Starter 单独引入、单独测试。
+1. Starter artifactId 使用 `xxx-spring-boot4-starter`，每个 Starter 单独引入、单独测试。既有目录名保留，新模块目录使用新名称，完整映射见 [坐标清单](COORDINATES.md)。
 2. Starter 继承根工程，不重复指定 Java、Spring、Jackson、Lombok 或测试框架版本。
 3. 新模块同时加入根 POM 的 `modules` 和 `common-tool-springboot4-bom/pom.xml` 的版本管理。
 4. BOM 保持独立，不继承根工程，不引入 Boot BOM，避免循环导入及覆盖消费端依赖版本。
@@ -65,7 +65,7 @@ python3 scripts/test-starter.py common --skip-build
 python3 scripts/test-starter.py oss --skip-build
 ```
 
-调整项目版本时同步所有模块的父版本、根工程与 BOM 的 `common-tool.version`，以及文档示例。当前组件统一使用 `io.github.bytex0` 作为 Maven `groupId` 和 Java 根包名，源码目录使用 `io/github/bytex0`，沿用原 `artifactId`，项目版本线为 `4.x`。迁移时同步调整 package、import、测试与自动配置注册资源，不混用旧仓库的 Boot 3 Starter。
+调整项目版本时同步所有模块的父版本、根工程与 BOM 的 `common-tool.version`，以及文档示例。当前组件统一使用 `io.github.bytex0` 作为 Maven `groupId` 和 Java 根包名，源码目录使用 `io/github/bytex0`，Starter artifactId 使用 `-spring-boot4-starter` 后缀，项目版本线为 `4.x`。迁移时同步调整 package、import、测试与自动配置注册资源，不混用旧仓库的 Boot 3 Starter。
 
 `release` Profile 仅用于生成源码/Javadoc 制品。正式接入 Maven Central 前，再配置签名、发布凭据和人工触发的发布流程。不得把凭据放入 POM、YAML 或提交记录。
 

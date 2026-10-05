@@ -8,8 +8,8 @@
         <artifactId>common-tool-springboot4</artifactId>
         <version>4.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>oss-spring-boot-starter</artifactId>
-    <name>oss-spring-boot-starter</name>
+    <artifactId>oss-spring-boot4-starter</artifactId>
+    <name>oss-spring-boot4-starter</name>
     <description>基于 AWS SDK v2 的 S3 兼容对象存储组件</description>
 
     <dependencies>

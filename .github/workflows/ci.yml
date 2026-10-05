@@ -22,8 +22,14 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Test coordinate validation
+        run: python3 -m unittest discover -s scripts -p 'test_check_coordinates.py'
+      - name: Check project coordinates
+        run: python3 scripts/check-coordinates.py
       - name: Build and test
         run: mvn --batch-mode --no-transfer-progress clean verify
+      - name: Verify renamed library artifacts
+        run: python3 scripts/check-coordinates.py --built-jars
       - name: Verify common starter HTTP API
         run: python3 scripts/test-starter.py common --skip-build
       - name: Verify IP region starter HTTP API

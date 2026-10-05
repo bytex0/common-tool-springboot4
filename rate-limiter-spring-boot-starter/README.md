@@ -5,7 +5,7 @@
 
 ## 接入
 
-依赖 `io.github.bytex0:rate-limiter-spring-boot-starter`，注入 `RateLimiterFactory` 调用
+依赖 `io.github.bytex0:rate-limiter-spring-boot4-starter`，注入 `RateLimiterFactory` 调用
 `tryAccess(FlowRule)`，或在 Spring 代理方法上使用 `@RateLimiter`。
 `rate-limiter.enabled=false` 关闭装配，`rate-limiter.max-local-keys` 默认 10000。
 LOCAL/GUAVA 不要求外部服务，库不会主动创建 Redis 连接。
