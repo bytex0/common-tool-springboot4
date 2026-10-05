@@ -1,7 +1,7 @@
 package io.github.bytex0.ip2region.core;
 
-import java.io.IOException;
 import java.util.Objects;
+import java.util.concurrent.locks.ReentrantLock;
 import org.lionsoul.ip2region.xdb.Searcher;
 
 /**
@@ -17,25 +17,44 @@ public class Ip2RegionTemplate {
      */
     private final Searcher searcher;
 
+    /**
+     * 保护搜索器的可变读取状态；不涉及网络请求或外部回调。
+     */
+    private final ReentrantLock searchLock = new ReentrantLock();
+
+    /**
+     * 包装由调用方或容器管理的搜索器，本模板不取得其关闭责任。
+     *
+     * @param searcher 非空搜索器
+     */
     public Ip2RegionTemplate(Searcher searcher) {
         this.searcher = Objects.requireNonNull(searcher);
     }
 
-    public synchronized RegionResult search(String ip) {
-        if (ip == null || !ip.matches("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")) {
+    /**
+     * 查询 IPv4 字面量，不进行 DNS 查询；保留原引擎对十进制前导零的解释。
+     *
+     * @param ip IPv4 字面量
+     * @return 归属地，数据库无记录时为 null
+     * @throws IllegalArgumentException 地址不合法
+     * @throws IllegalStateException 数据库查询或记录解析失败
+     */
+    public RegionResult search(String ip) {
+        if (ip == null) {
             throw new IllegalArgumentException("A literal IPv4 address is required");
         }
-        for (String part : ip.split("\\.")) {
-            if (Integer.parseInt(part) > 255 || (part.length() > 1 && part.startsWith("0"))) {
-                throw new IllegalArgumentException("Invalid IPv4 address");
-            }
+        try {
+            Searcher.checkIP(ip);
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("Invalid IPv4 address", exception);
         }
+        searchLock.lock();
         try {
             return RegionResult.fromRawString(searcher.search(ip));
-        } catch (IOException exception) {
-            throw new IllegalStateException("IP database lookup failed", exception);
         } catch (Exception exception) {
             throw new IllegalStateException("IP database lookup failed", exception);
+        } finally {
+            searchLock.unlock();
         }
     }
 }

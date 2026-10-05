@@ -21,12 +21,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class IpControllerTest {
 
+    /**
+     * 模拟 MVC 请求入口。
+     */
     private final MockMvc mvc;
 
+    /**
+     * 注入测试入口。
+     *
+     * @param mvc MVC 请求执行器
+     */
     IpControllerTest(@Qualifier("mockMvc") MockMvc mvc) {
         this.mvc = mvc;
     }
 
+    /**
+     * 验证真实记录及无 DNS 主机名查询边界。
+     *
+     * @throws Exception HTTP 模拟请求失败
+     */
     @Test
     void searchesDatabaseAndRejectsHostNames() throws Exception {
         mvc.perform(get("/api/ip/search").param("ip", "8.8.8.8"))

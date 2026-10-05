@@ -14,9 +14,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class Ip2RegionProperties {
 
     /**
-     * 显式开启本地 IPv4 数据库查询。
+     * 保留原属性模型的 true 默认值；自动配置仍要求外部显式设置 enabled=true。
      */
-    private boolean enabled;
+    private Boolean enabled = true;
 
     /**
      * 文件路径或 classpath: 资源位置。
@@ -24,7 +24,16 @@ public class Ip2RegionProperties {
     private String dbPath;
 
     /**
-     * 数据文件最大字节数，避免错误配置耗尽堆。
+     * 数据文件最大字节数，默认 64 MiB，允许范围为 XDB 索引头大小至 256 MiB。
      */
     private int maxDatabaseBytes = 64 * 1024 * 1024;
+
+    /**
+     * 保留此前版本的判断入口，包装类型避免破坏原 Boolean JavaBean setter。
+     *
+     * @return 非空布尔值，仅配置值为 true 时返回 true
+     */
+    public Boolean isEnabled() {
+        return Boolean.TRUE.equals(enabled);
+    }
 }

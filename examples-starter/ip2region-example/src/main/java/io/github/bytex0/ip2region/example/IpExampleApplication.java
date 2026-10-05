@@ -12,6 +12,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class IpExampleApplication {
 
+    /**
+     * 启动真实 XDB 查询示例。
+     *
+     * @param args 应用参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(IpExampleApplication.class, args);
     }

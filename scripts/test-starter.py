@@ -113,7 +113,9 @@ def test_ip2region(base, record):
         results = list(pool.map(lambda _: api(base, "ip/search", query={"ip": "8.8.8.8"}), range(40)))
     require(all(result == results[0] for result in results), "concurrent IP results differ")
     record("ip-concurrent-queries")
-    for value in ("localhost", "::1", "256.0.0.1", "01.2.3.4", ""):
+    require(api(base, "ip/search", query={"ip": "008.8.8.8"})["country"] == "美国",
+            "original decimal IPv4 spelling changed")
+    for value in ("localhost", "::1", "256.0.0.1", ""):
         api(base, "ip/search", query={"ip": value}, expected=400)
     record("ip-invalid-input")
 
