@@ -38,6 +38,7 @@ MODULES = {
     "multi-redis": "multi-redis-example",
     "lock": "lock-example",
     "rate-limiter": "rate-limiter-example",
+    "idempotent": "idempotent-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -97,6 +98,44 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_idempotent(base, peer, record):
+    key = "idempotent-" + uuid.uuid4().hex
+
+    def submit(target):
+        status, body = request(target + "/api/idempotent/run?" + urlencode({"key": key, "delay": 100}), "POST")
+        require(status in (200, 409), f"unexpected idempotent response {status}")
+        require(json.loads(body)["code"] == (0 if status == 200 else 409), "incorrect idempotent business code")
+        return status
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        responses = list(pool.map(submit, [base, peer] * 4))
+    require(responses.count(200) == 1, "duplicate work ran across application instances")
+    require(api(peer, "idempotent/state", query={"key": key})["count"] == 1, "shared work count was not one")
+    record("idempotent-cross-instance-single-execution")
+
+    retry_key = "retry-" + uuid.uuid4().hex
+    api(base, "idempotent/run", "POST", query={"key": retry_key, "fail": "true"}, expected=500)
+    require(api(peer, "idempotent/run", "POST", query={"key": retry_key})["count"] == 1, "failed work prevented retry")
+    api(base, "idempotent/run", "POST", query={"key": retry_key}, expected=409)
+    record("idempotent-failure-retry")
+
+    long_key = "long-" + uuid.uuid4().hex
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        running = pool.submit(api, base, "idempotent/run", "POST", query={"key": long_key, "delay": 2500})
+        deadline = time.monotonic() + 5
+        while api(peer, "idempotent/state", query={"key": long_key})["active"] == 0:
+            require(time.monotonic() < deadline, "long-running request did not start")
+            time.sleep(0.02)
+        time.sleep(1.3)
+        api(peer, "idempotent/run", "POST", query={"key": long_key}, expected=409)
+        require(running.result()["count"] == 1, "long-running request failed")
+    time.sleep(1.2)
+    require(api(peer, "idempotent/run", "POST", query={"key": long_key})["count"] == 2, "completed window did not expire")
+    record("idempotent-processing-lock-and-success-window")
+    api(base, "idempotent/run", "POST", query={"key": ""}, expected=400)
+    record("idempotent-key-validation")
 
 
 def test_rate_limiter(base, peer, record):
@@ -615,7 +654,7 @@ def main():
         if args.starter == "docs":
             environment["DOCS_USERNAME"] = "test-" + uuid.uuid4().hex
             environment["DOCS_PASSWORD"] = uuid.uuid4().hex
-        if args.starter in ("multi-redis", "lock", "rate-limiter"):
+        if args.starter in ("multi-redis", "lock", "rate-limiter", "idempotent"):
             start_redis(resources, environment, cluster=args.starter == "multi-redis")
             record("redis-test-service-ready")
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
@@ -630,7 +669,7 @@ def main():
                     base = wait_for_application(process, log_path)
                     record("application-health")
                     peer_base = None
-                    if args.starter in ("lock", "rate-limiter"):
+                    if args.starter in ("lock", "rate-limiter", "idempotent"):
                         peer_path = Path(temporary) / "peer.log"
                         with peer_path.open("w") as peer_log:
                             peer = subprocess.Popen(
@@ -659,6 +698,8 @@ def main():
                         test_lock(base, peer_base, record)
                     elif args.starter == "rate-limiter":
                         test_rate_limiter(base, peer_base, record)
+                    elif args.starter == "idempotent":
+                        test_idempotent(base, peer_base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:

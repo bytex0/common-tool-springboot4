@@ -27,6 +27,7 @@
         <module>multi-redis-example</module>
         <module>lock-example</module>
         <module>rate-limiter-example</module>
+        <module>idempotent-example</module>
     </modules>
 
     <properties>

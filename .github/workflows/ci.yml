@@ -44,3 +44,5 @@ jobs:
         run: python3 scripts/test-starter.py lock --skip-build
       - name: Verify rate limiter starter HTTP API
         run: python3 scripts/test-starter.py rate-limiter --skip-build
+      - name: Verify idempotency starter HTTP API
+        run: python3 scripts/test-starter.py idempotent --skip-build

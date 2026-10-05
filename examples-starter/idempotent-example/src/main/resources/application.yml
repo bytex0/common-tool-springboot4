@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: idempotent-example
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18091}
+multi-redis:
+  enabled: true
+  clients:
+    main:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

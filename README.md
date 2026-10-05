@@ -4,7 +4,7 @@
 
 本项目 Maven `groupId` 和 Java 根包名统一为 `io.github.bytex0`，源码目录对应 `io/github/bytex0`。
 
-当前完成**项目框架、基础 Starter、OSS 和本地缓存 Starter**，不是原项目全部组件的完成迁移版。Redis、MyBatis-Plus、消息队列等组件尚未迁入，详见 [迁移说明](docs/MIGRATION.md)。后续已选定的 10 个常用组件及进度见 [第一批清单](docs/BATCH-01.md)。
+当前完成**基础框架及 12 个 Starter**，其中 [第一批 10 个常用组件](docs/BATCH-01.md)已全部逐项验证。项目不是原仓库的完整二进制兼容替代版，MyBatis-Plus、消息队列等其他组件尚未迁入，详见 [迁移说明](docs/MIGRATION.md)。
 
 ## 技术基线
 
@@ -27,10 +27,28 @@ common-tool-springboot4/
 ├── common-tool-spring-boot-starter/      # 基础自动配置、启动日志、ApiResponse
 ├── oss-spring-boot-starter/              # AWS SDK v2：上传下载、分片、签名和元数据
 ├── local-cache-spring-boot-starter/      # Caffeine：延迟初始化、隔离工厂、加载及统计
+├── docs-spring-boot-starter/             # Springdoc 3、文档访问保护
+├── excel-spring-boot-starter/            # Fesod批次导入、多Sheet与ZIP
+├── i18n-spring-boot-starter/             # 内存与资源国际化
+├── desensitize-spring-boot-starter/      # Jackson 3属性脱敏
+├── dict-spring-boot-starter/             # 字典缓存与安全加载
+├── multi-redis-spring-boot-starter/      # 命名单机/集群连接
+├── lock-spring-boot-starter/             # 作用域锁与信号量
+├── rate-limiter-spring-boot-starter/     # 七种限流策略
+├── idempotent-spring-boot-starter/       # 处理中与成功窗口分离
 ├── examples-starter/                    # 示例聚合工程，不发布到远程仓库
 │   ├── common-tool-example/             # 可独立运行的 Web MVC + Actuator 示例
 │   ├── oss-upload-examples/             # 真实集成 OSS Starter 的测试接口
-│   └── local-cache-example/             # 本地缓存 CRUD、加载、过期及统计接口
+│   ├── local-cache-example/             # 本地缓存 CRUD、加载、过期及统计接口
+│   ├── docs-example/                    # 文档认证与OpenAPI
+│   ├── excel-example/                   # 文件实际回读验证
+│   ├── i18n-example/                    # 语言协商和动态消息
+│   ├── desensitize-example/             # 字段与集合脱敏
+│   ├── dict-example/                    # 文本补充和刷新
+│   ├── multi-redis-example/             # 命名路由与集群
+│   ├── lock-example/                    # 双实例临界区
+│   ├── rate-limiter-example/            # 双实例共享额度
+│   └── idempotent-example/              # 双实例去重和失败重试
 ├── scripts/test-starter.py              # 构建、启动、真实 HTTP 验证、清理和报告
 ├── docs/
 │   ├── MIGRATION.md                     # 原项目分析与分批迁移清单
@@ -120,12 +138,25 @@ python3 scripts/test-starter.py common
 # 本地缓存，无需外部中间件
 python3 scripts/test-starter.py local-cache
 
+# 其他无外部服务示例
+python3 scripts/test-starter.py docs
+python3 scripts/test-starter.py excel
+python3 scripts/test-starter.py i18n
+python3 scripts/test-starter.py desensitize
+python3 scripts/test-starter.py dict
+
+# 自动创建并清理专用Docker Redis；不使用已有业务容器
+python3 scripts/test-starter.py multi-redis
+python3 scripts/test-starter.py lock
+python3 scripts/test-starter.py rate-limiter
+python3 scripts/test-starter.py idempotent
+
 # OSS_ACCESS_KEY、OSS_ACCESS_SECRET 由环境提前注入
 # 默认连接 http://127.0.0.1:19000，可通过 OSS_ENDPOINT 修改
 python3 scripts/test-starter.py oss
 ```
 
-脚本使用 Python 3.10+ 标准库，无需安装第三方包；使用随机端口、随机测试桶，并自动清理。只有刚刚验证并打包了当前代码时才使用 `--skip-build`。结果写入对应示例的 `target/api-test-report.json`，失败返回非零退出码。
+脚本使用 Python 3.10+ 标准库，无需安装第三方包；使用随机端口及测试资源，并自动清理。Redis系列需Docker，默认测试镜像为`redis:8-alpine`；锁、限流、幂等启动两个独立应用验证跨实例行为。只有刚刚验证并打包了当前代码时才使用 `--skip-build`。结果写入对应示例的 `target/api-test-report.json`，失败返回非零退出码。
 
 OSS 接入方式见 [组件文档](oss-spring-boot-starter/README.md)，接口列表见 [示例文档](examples-starter/oss-upload-examples/README.md)。
 

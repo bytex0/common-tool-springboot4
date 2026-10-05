@@ -56,16 +56,18 @@ OSS 迁移时重新读取的源模块已是 `io.github.archer099:common-tool:2.5
 
 ## 后续迁移分组
 
+第一批常用组件已全部完成，逐项问题、兼容变化与验证结果见 [BATCH-01](BATCH-01.md)。当前全量130项Java测试，12个示例均有真实HTTP自动化；Redis集群和双实例测试使用专用Docker资源。类注释作者统一为bytex0，原有since时间保持不变。
+
 下表均为**待迁移**，只是推荐顺序，不代表已验证兼容：
 
 | 批次 | 原模块 | 主要检查点 |
 | --- | --- | --- |
-| 1：轻依赖能力 | `design-pattern`、`disruptor`、`i18n`、`ip2region`、`sensitive-word` | Spring 7 接口、切面 Starter、资源与依赖边界 |
-| 2：JSON 与 Web | `dict`、`desensitize`、`crypto`、`signature`、`docs` | Jackson 3 扩展 API、MVC 自动配置新包名、Springdoc/Knife4j Boot 4 支持 |
-| 3：Redis 与并发控制 | `multi-redis`、`multi-redisson`、`lock`、`rate-limiter`、`idempotent` | Spring Data Redis 4、Redisson 适配、序列化及连接隔离 |
+| 1：轻依赖能力 | `design-pattern`、`disruptor`、`ip2region`、`sensitive-word` | Spring 7 接口、切面 Starter、资源与依赖边界 |
+| 2：JSON 与 Web | `crypto`、`signature` | Jackson 3 扩展 API、MVC 自动配置新包名 |
+| 3：Redis 与并发控制 | `multi-redisson` | 与已迁移multi-redis的能力边界及冗余评估 |
 | 4：数据库与消息 | `mybatis-plus-spring3`、`local-message`、`dynamic-mq`、`mqtt`、`netty` | Boot 4 专用集成、动态数据源/事务兼容、消息连接生命周期 |
 | 5：任务与容错 | `xxl-job`、`dynamic-threadpool`、`resilience4j` | Boot 4 Actuator 模块、Tomcat 11、Spring 7 适配 |
-| 6：文件与外部服务 | `sftp`、`excel`、`robot-message`、`script`、`ffmpeg` | SDK/JDK 21 兼容、资源关闭、可选依赖及外部服务测试 |
+| 6：文件与外部服务 | `sftp`、`robot-message`、`script`、`ffmpeg` | SDK/JDK 21 兼容、资源关闭、可选依赖及外部服务测试 |
 | 单独评估 | `push` | 原项目未启用，先确认是否继续维护 |
 
 除表中明确带版本的名称外，其余模块均省略了 `-spring-boot-starter` 后缀。原 `mybatis-plus-spring3-boot-starter` 迁入时建议改为 `mybatis-plus-spring4-boot-starter`，待对应依赖兼容性核实后再加入工程。
