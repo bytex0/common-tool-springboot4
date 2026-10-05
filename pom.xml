@@ -38,6 +38,7 @@
         <module>sensitive-word-spring-boot-starter</module>
         <module>disruptor-spring-boot-starter</module>
         <module>sftp-spring-boot-starter</module>
+        <module>script-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 

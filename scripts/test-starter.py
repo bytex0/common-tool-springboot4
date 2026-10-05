@@ -43,6 +43,7 @@ MODULES = {
     "sensitive-word": "sensitive-word-example",
     "disruptor": "disruptor-example",
     "sftp": "sftp-example",
+    "script": "script-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -142,6 +143,19 @@ def test_disruptor(base, record):
     record("disruptor-multiple-producers")
     api(base, "disruptor/send", "POST", query={"queue": "missing", "value": 1}, expected=400)
     record("disruptor-invalid-queue")
+
+
+def test_script(base, record):
+    require(api(base, "script/run", query={"a": 2, "b": 3})["value"] == 5, "Groovy sum incorrect")
+    require(api(base, "script/run", query={"name": "product", "a": 2, "b": 3})["value"] == 6, "Groovy product incorrect")
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(lambda n: api(base, "script/run", query={"a": n, "b": 1})["value"], range(12)))
+    require(results == list(range(1, 13)), "script parameters leaked across calls")
+    record("script-real-execution-and-isolation")
+    api(base, "script/run", query={"name": "timeout"}, expected=504)
+    require(api(base, "script/run", query={"a": 20, "b": 22})["value"] == 42, "script worker failed after timeout")
+    api(base, "script/run", query={"name": "untrusted"}, expected=400)
+    record("script-timeout-recovery-and-allowlist")
 
 
 def start_sftp(jar, environment, temporary):
@@ -800,6 +814,8 @@ def main():
                         test_disruptor(base, record)
                     elif args.starter == "sftp":
                         test_sftp(base, record, environment)
+                    elif args.starter == "script":
+                        test_script(base, record)
                     elif args.starter == "local-cache":
                         test_local_cache(base, record)
                     elif args.starter == "docs":
