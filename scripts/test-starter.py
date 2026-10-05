@@ -42,6 +42,7 @@ MODULES = {
     "ip2region": "ip2region-example",
     "sensitive-word": "sensitive-word-example",
     "disruptor": "disruptor-example",
+    "sftp": "sftp-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -141,6 +142,71 @@ def test_disruptor(base, record):
     record("disruptor-multiple-producers")
     api(base, "disruptor/send", "POST", query={"queue": "missing", "value": 1}, expected=400)
     record("disruptor-invalid-queue")
+
+
+def start_sftp(jar, environment, temporary):
+    root = Path(temporary)
+    environment.update(TEST_SFTP_ROOT=str(root), TEST_SFTP_USERNAME="tester", TEST_SFTP_PASSWORD=uuid.uuid4().hex)
+    with (root / "sftp-server.log").open("w") as log:
+        server = subprocess.Popen(["java", "-jar", str(jar), "--spring.profiles.active=sftp-fixture",
+                                   "--spring.main.web-application-type=none", "--spring.main.keep-alive=true",
+                                   "--sftp-pool.enable=false"],
+                                  env=environment, stdout=log, stderr=subprocess.STDOUT)
+    try:
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            require(server.poll() is None, "SFTP fixture process exited")
+            port_file = root / "port"
+            if port_file.exists() and port_file.read_text().isdigit():
+                environment.update(TEST_SFTP_ENABLED="true", TEST_SFTP_HOST="127.0.0.1",
+                                   TEST_SFTP_PORT=port_file.read_text(),
+                                   TEST_SFTP_KNOWN_HOSTS=str(root / "known_hosts"))
+                return server
+            time.sleep(0.2)
+        raise AssertionError("SFTP fixture startup timed out")
+    except BaseException:
+        stop_process(server)
+        raise
+
+
+def test_sftp(base, record, environment):
+    name = uuid.uuid4().hex + ".bin"
+    path = "/api/sftp/file/" + name
+    content = bytes(range(256)) * 8192
+    created = False
+    try:
+        status, body = request(base + path, "PUT", content, {"Content-Type": "application/octet-stream"})
+        require(status == 200, f"SFTP upload returned HTTP {status}")
+        created = True
+        require(json.loads(body)["data"]["active"] == 0, "upload leaked SFTP lease")
+        status, received = request(base + path)
+        require(status == 200 and hashlib.sha256(received).digest() == hashlib.sha256(content).digest(),
+                "SFTP roundtrip content mismatch")
+        require(name in api(base, "sftp/files")["names"], "SFTP listing lost upload")
+        record("sftp-real-stream-roundtrip")
+        for _ in range(5):
+            api(base, "sftp/file/missing.bin", expected=404)
+        require(api(base, "sftp/files")["active"] == 0, "SFTP failures exhausted pool")
+        record("sftp-failure-invalidation-and-recovery")
+        api(base, "sftp/file/missing.bin", expected=404)
+        known_hosts = Path(environment["TEST_SFTP_KNOWN_HOSTS"])
+        trusted = known_hosts.read_text()
+        try:
+            known_hosts.write_text("")
+            require(request(base + "/api/sftp/files")[0] == 500, "untrusted SFTP host was accepted")
+        finally:
+            known_hosts.write_text(trusted)
+        require(name in api(base, "sftp/files")["names"], "SFTP did not recover after trust restoration")
+        record("sftp-host-key-enforcement")
+        status, _ = request(base + path, "PUT", b"", {"Content-Type": "application/octet-stream"})
+        require(status == 200 and request(base + path) == (200, b""), "empty SFTP file failed")
+        api(base, "sftp/file/invalid.txt", expected=400)
+        record("sftp-empty-file-and-validation")
+    finally:
+        if created:
+            api(base, "sftp/file/" + name, "DELETE")
+            require(name not in api(base, "sftp/files")["names"], "SFTP test file remains")
+            record("sftp-file-cleanup")
 
 
 def test_idempotent(base, peer, record):
@@ -701,6 +767,9 @@ def main():
             start_redis(resources, environment, cluster=args.starter == "multi-redis")
             record("redis-test-service-ready")
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
+            if args.starter == "sftp":
+                peer = start_sftp(jar, environment, temporary)
+                record("sftp-test-service-ready")
             log_path = Path(temporary) / "application.log"
             with log_path.open("w") as log:
                 process = subprocess.Popen(
@@ -729,6 +798,8 @@ def main():
                         test_sensitive_word(base, record)
                     elif args.starter == "disruptor":
                         test_disruptor(base, record)
+                    elif args.starter == "sftp":
+                        test_sftp(base, record, environment)
                     elif args.starter == "local-cache":
                         test_local_cache(base, record)
                     elif args.starter == "docs":
@@ -757,7 +828,7 @@ def main():
         record("application-stopped")
         if resources:
             stop_services(resources)
-            record("redis-test-service-cleanup")
+            record("test-service-cleanup")
         report["passed"] = True
         print(f"PASS {args.starter}: {len(report['checks'])} checks", flush=True)
         return 0

@@ -8,7 +8,7 @@
 | 1 | ip2region | 已完成并验证 |
 | 2 | sensitive-word | 已完成并验证 |
 | 3 | disruptor | 已完成并验证 |
-| 4 | sftp | 待迁移 |
+| 4 | sftp | 已完成并验证 |
 | 5 | script | 待迁移 |
 | 6 | dynamic-threadpool | 待迁移 |
 | 7 | mqtt | 待迁移 |
@@ -34,3 +34,9 @@ Unicode、词库原子更新及文本长度上限。API 收敛及不再隐式修
 
 144 项 Java 测试通过，真实 HTTP 5 项通过。验证消费确认、异常恢复、多生产者、
 重复名称、满队列拒绝和生命周期；类型化消费者 Bean 替代旧反射注解，变化见模块 README。
+
+## SFTP
+
+147 项 Java 测试通过，独立 Apache MINA SSHD 进程的 8 项真实检查通过：
+文件 SHA-256、空文件、连接池失败恢复、严格主机公钥校验及资源清理。
+镜像仓库连接拒绝后改用示例内的显式测试 Profile，库不引入 SSH 服务端依赖。

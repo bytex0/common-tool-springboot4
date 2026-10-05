@@ -1,0 +1,8 @@
+sftp-pool:
+  enable: ${TEST_SFTP_ENABLED:false}
+  host: ${TEST_SFTP_HOST:127.0.0.1}
+  port: ${TEST_SFTP_PORT:22}
+  username: ${TEST_SFTP_USERNAME:}
+  password: ${TEST_SFTP_PASSWORD:}
+  known-hosts: ${TEST_SFTP_KNOWN_HOSTS:}
+  max-total: 2
