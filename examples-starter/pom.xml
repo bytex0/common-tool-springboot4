@@ -26,6 +26,7 @@
         <module>dict-example</module>
         <module>multi-redis-example</module>
         <module>lock-example</module>
+        <module>rate-limiter-example</module>
     </modules>
 
     <properties>

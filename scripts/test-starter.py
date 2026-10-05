@@ -37,6 +37,7 @@ MODULES = {
     "dict": "dict-example",
     "multi-redis": "multi-redis-example",
     "lock": "lock-example",
+    "rate-limiter": "rate-limiter-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -96,6 +97,53 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_rate_limiter(base, peer, record):
+    def attempt(target, key, kind, **parameters):
+        query = {"key": key, "type": kind, **parameters}
+        status, body = request(target + "/api/rate/acquire?" + urlencode(query))
+        require(status in (200, 429), f"{kind}: unexpected response {status}")
+        require(json.loads(body)["code"] == (0 if status == 200 else 429), "incorrect rate business code")
+        return status
+
+    for kind in ("LOCAL", "REDISSON", "REDIS_LUA_FIXED_WINDOW", "REDIS_LUA_SLIDING_WINDOW"):
+        key = "rate-" + uuid.uuid4().hex
+        targets = [base] if kind == "LOCAL" else [base, peer]
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures = [executor.submit(attempt, targets[index % len(targets)], key, kind) for index in range(6)]
+            statuses = [future.result() for future in futures]
+        require(statuses.count(200) == 3, f"{kind}: shared quota was not enforced")
+    record("rate-local-native-and-window-quotas")
+    for kind in ("REDIS_LUA_TOKEN_BUCKET", "REDIS_LUA_LEAKY_BUCKET"):
+        key = "bucket-" + uuid.uuid4().hex
+        statuses = [attempt((base, peer)[index % 2], key, kind) for index in range(5)]
+        require(statuses.count(200) == 3, f"{kind}: bucket capacity incorrect")
+        if kind.endswith("LEAKY_BUCKET"):
+            retry = []
+            for _ in range(5):
+                time.sleep(0.3)
+                retry.append(attempt(peer, key, kind))
+            require(200 in retry, "leaky bucket lost drain progress on rejected requests")
+        else:
+            time.sleep(1.1)
+            require(attempt(peer, key, kind) == 200, "token bucket did not refill")
+    record("rate-token-refill-and-leaky-drain")
+    key = "weighted-" + uuid.uuid4().hex
+    require(attempt(base, key, "REDIS_LUA_FIXED_WINDOW", permits=2) == 200, "weighted acquisition failed")
+    require(attempt(peer, key, "REDIS_LUA_FIXED_WINDOW", permits=2) == 429, "weighted quota exceeded")
+    time.sleep(2.1)
+    require(attempt(peer, key, "REDIS_LUA_FIXED_WINDOW", permits=2) == 200, "window did not expire")
+    record("rate-weighted-permits-and-expiry")
+    key = "guava-" + uuid.uuid4().hex
+    require(attempt(base, key, "GUAVA") == 200, "Guava initial permit failed")
+    require(attempt(base, key, "GUAVA") == 429, "Guava limiter did not throttle")
+    key = "annotation-" + uuid.uuid4().hex
+    api(base, "rate/annotated", query={"key": key})
+    api(peer, "rate/annotated", query={"key": key})
+    api(base, "rate/annotated", query={"key": key}, expected=429)
+    api(base, "rate/acquire", query={"key": key, "permits": 0}, expected=400)
+    record("rate-guava-annotation-and-validation")
 
 
 def test_lock(base, peer, record):
@@ -567,7 +615,7 @@ def main():
         if args.starter == "docs":
             environment["DOCS_USERNAME"] = "test-" + uuid.uuid4().hex
             environment["DOCS_PASSWORD"] = uuid.uuid4().hex
-        if args.starter in ("multi-redis", "lock"):
+        if args.starter in ("multi-redis", "lock", "rate-limiter"):
             start_redis(resources, environment, cluster=args.starter == "multi-redis")
             record("redis-test-service-ready")
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
@@ -582,7 +630,7 @@ def main():
                     base = wait_for_application(process, log_path)
                     record("application-health")
                     peer_base = None
-                    if args.starter == "lock":
+                    if args.starter in ("lock", "rate-limiter"):
                         peer_path = Path(temporary) / "peer.log"
                         with peer_path.open("w") as peer_log:
                             peer = subprocess.Popen(
@@ -609,6 +657,8 @@ def main():
                         test_multi_redis(base, record)
                     elif args.starter == "lock":
                         test_lock(base, peer_base, record)
+                    elif args.starter == "rate-limiter":
+                        test_rate_limiter(base, peer_base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:

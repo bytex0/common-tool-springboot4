@@ -12,7 +12,7 @@
 | 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 已完成并验证 |
 | 7 | `multi-redis-spring-boot-starter` | 多 Redis 连接及序列化 | 已完成并验证 |
 | 8 | `lock-spring-boot-starter` | 本地锁及分布式锁 | 已完成并验证 |
-| 9 | `rate-limiter-spring-boot-starter` | 限流与流量控制 | 待审查 |
+| 9 | `rate-limiter-spring-boot-starter` | 限流与流量控制 | 已完成并验证 |
 | 10 | `idempotent-spring-boot-starter` | 接口幂等与重复请求控制 | 待审查 |
 
 Redis 相关验证使用专用临时实例或明确指定的测试连接，不复用业务容器的数据。每个模块的状态只在其全部验证通过后改为完成。
@@ -58,3 +58,7 @@ Redis 相关验证使用专用临时实例或明确指定的测试连接，不�
 ## 锁
 
 改为成功获取后才可释放的执行作用域，修复无条件unlock和信号量额度膨胀，支持本地引用清理、读写锁、许可令牌及续租。补充可信方法表达式工具。全量117项Java测试、9项真实检查通过，使用两个应用实例验证跨进程行为。
+
+## 限流
+
+覆盖本地、Guava、Redisson及四种Lua策略，修复缺少默认LOCAL实现、静态无界状态、客户端时钟、TTL缺失及漏桶拒绝时丢失排水进度。支持加权许可、规则表达式和有界本地状态。全量123项Java测试、9项双实例真实检查通过。

@@ -32,6 +32,7 @@
         <module>dict-spring-boot-starter</module>
         <module>multi-redis-spring-boot-starter</module>
         <module>lock-spring-boot-starter</module>
+        <module>rate-limiter-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 
@@ -45,10 +46,12 @@
         <springdoc.version>3.0.3</springdoc.version>
         <fesod.version>2.0.2-incubating</fesod.version>
         <redisson.version>4.8.0</redisson.version>
+        <guava.version>33.7.2-jre</guava.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>${guava.version}</version></dependency>
             <dependency><groupId>org.redisson</groupId><artifactId>redisson</artifactId><version>${redisson.version}</version></dependency>
             <dependency><groupId>org.apache.fesod</groupId><artifactId>fesod-sheet</artifactId><version>${fesod.version}</version></dependency>
             <dependency>
