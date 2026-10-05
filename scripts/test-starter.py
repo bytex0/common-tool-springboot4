@@ -44,6 +44,7 @@ MODULES = {
     "disruptor": "disruptor-example",
     "sftp": "sftp-example",
     "script": "script-example",
+    "dynamic-threadpool": "dynamic-threadpool-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -156,6 +157,22 @@ def test_script(base, record):
     require(api(base, "script/run", query={"a": 20, "b": 22})["value"] == 42, "script worker failed after timeout")
     api(base, "script/run", query={"name": "untrusted"}, expected=400)
     record("script-timeout-recovery-and-allowlist")
+
+
+def test_threadpool(base, record):
+    require(api(base, "pools/run")["thread"].startswith("dynamic-demo-"), "task did not use named pool")
+    with ThreadPoolExecutor(max_workers=10) as clients:
+        results = list(clients.map(lambda _: request(base + "/api/pools/run?delay=400")[0], range(10)))
+    require(429 in results and 200 in results and set(results) <= {200, 429}, "bounded pool did not reject overload")
+    require(api(base, "pools/stats")["rejected"] > 0, "rejections were not counted")
+    record("threadpool-execution-and-backpressure")
+    grown = api(base, "pools/resize", "POST", query={"core": 4, "max": 4})
+    require(grown["core"] == grown["max"] == 4 and grown["capacity"] == 2, "pool expansion failed")
+    shrunk = api(base, "pools/resize", "POST", query={"core": 1, "max": 1})
+    require(shrunk["core"] == shrunk["max"] == 1, "pool shrink failed")
+    api(base, "pools/resize", "POST", query={"core": 4, "max": 1}, expected=400)
+    require(api(base, "pools/stats")["core"] == 1, "invalid update changed configuration")
+    record("threadpool-resize-and-invalid-update")
 
 
 def start_sftp(jar, environment, temporary):
@@ -816,6 +833,8 @@ def main():
                         test_sftp(base, record, environment)
                     elif args.starter == "script":
                         test_script(base, record)
+                    elif args.starter == "dynamic-threadpool":
+                        test_threadpool(base, record)
                     elif args.starter == "local-cache":
                         test_local_cache(base, record)
                     elif args.starter == "docs":

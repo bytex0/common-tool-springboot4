@@ -33,6 +33,7 @@
         <module>disruptor-example</module>
         <module>sftp-example</module>
         <module>script-example</module>
+        <module>dynamic-threadpool-example</module>
     </modules>
 
     <properties>

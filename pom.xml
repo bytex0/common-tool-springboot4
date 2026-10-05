@@ -39,6 +39,7 @@
         <module>disruptor-spring-boot-starter</module>
         <module>sftp-spring-boot-starter</module>
         <module>script-spring-boot-starter</module>
+        <module>dynamic-threadpool-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 

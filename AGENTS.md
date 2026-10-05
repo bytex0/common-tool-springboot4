@@ -64,6 +64,17 @@
 - 资源所有权必须清晰：文件流、HTTP 连接和 SDK 客户端要正确关闭，临时文件必须清理。
 - 涉及大文件时避免全量读入堆内存，不能将 `InputStream.available()` 当作文件长度。
 
+## 并发控制硬性约束
+
+- **禁止使用 `synchronized`**，包括实例方法、静态方法及同步代码块；主代码、测试代码和示例代码均适用。
+- 新增、迁移和修改代码必须遵守，不照搬原项目中的 `synchronized`，也不通过 Lombok `@Synchronized` 等生成代码绕过约束。
+- 优先使用不可变对象、线程封闭、原子变量及并发集合的原子操作。多字段一致性或复合操作确实需要互斥时，使用 `ReentrantLock`；确有读写分离需求时再选择 `ReentrantReadWriteLock`。
+- 显式锁必须在 `finally` 中释放；使用 `tryLock` 时只有成功获取锁才能释放。需要取消或超时的操作使用可中断或限时获取，不吞掉中断信号。
+- 控制锁粒度，避免持锁进行网络请求、文件 I/O、等待 Future、线程退出或调用外部回调；确有必要时须说明原因并设置等待边界。
+- `volatile` 只提供可见性，不能替代复合操作的互斥；不能用简单的 `get` 后 `put` 替代原子更新。
+- 整改存量 `synchronized` 时先确认共享状态、可见性、重入及锁顺序，不能只删除关键字或机械替换后宣称线程安全。补充并发、异常释放、关闭竞争及必要的超时测试。
+- 每个 Starter 提交前检查本次涉及模块的 Java 代码，确保没有上述禁止用法；第三方依赖内部实现不在本仓库源码整改范围内。
+
 ## Spring Boot 4
 
 - 自动配置使用 `@AutoConfiguration` 和 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`。

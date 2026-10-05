@@ -20,6 +20,7 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>dynamic-threadpool-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
             <dependency><groupId>io.github.bytex0</groupId><artifactId>script-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
             <dependency><groupId>io.github.bytex0</groupId><artifactId>sftp-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
             <dependency><groupId>io.github.bytex0</groupId><artifactId>disruptor-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
