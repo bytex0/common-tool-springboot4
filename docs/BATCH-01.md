@@ -7,7 +7,7 @@
 | 1 | `local-cache-spring-boot-starter` | Caffeine 本地缓存、加载与统计 | 已完成并验证 |
 | 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 已完成并验证 |
 | 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 已完成并验证 |
-| 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 待审查 |
+| 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 已完成并验证 |
 | 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 待审查 |
 | 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 待审查 |
 | 7 | `multi-redis-spring-boot-starter` | 多 Redis 连接及序列化 | 待审查 |
@@ -38,3 +38,7 @@ Redis 相关验证使用专用临时实例或明确指定的测试连接，不�
 ## Excel
 
 改用 Apache Fesod 2 和统一有界模板，覆盖批次导入、多Sheet及ZIP导出。修复导出写错目标、空数据无有效文件、跨页超行、异步队列失败挂起、失败临时文件清理及把错误文本识别为空CSV成功的问题。明确XLSX格式、流所有权及事务边界。全量83项Java测试、6项真实HTTP检查通过。
+
+## 国际化
+
+修复资源HashMap并发访问、未关闭流、cacheSeconds未生效、语言头解析、默认文本语义及刷新删除内存数据。采用标准消息源、不可变内存快照、独立有界资源缓存和标准语言协商。全量90项Java测试、5项真实HTTP检查通过。

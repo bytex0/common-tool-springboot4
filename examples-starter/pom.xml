@@ -21,6 +21,7 @@
         <module>local-cache-example</module>
         <module>docs-example</module>
         <module>excel-example</module>
+        <module>i18n-example</module>
     </modules>
 
     <properties>

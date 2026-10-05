@@ -32,3 +32,5 @@ jobs:
         run: python3 scripts/test-starter.py docs --skip-build
       - name: Verify Excel starter HTTP API
         run: python3 scripts/test-starter.py excel --skip-build
+      - name: Verify i18n starter HTTP API
+        run: python3 scripts/test-starter.py i18n --skip-build

@@ -29,6 +29,7 @@ MODULES = {
     "local-cache": "local-cache-example",
     "docs": "docs-example",
     "excel": "excel-example",
+    "i18n": "i18n-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -48,12 +49,12 @@ def request(url, method="GET", data=None, headers=None):
             return error.code, error.read()
 
 
-def api(base, path, method="GET", payload=None, query=None, expected=200):
+def api(base, path, method="GET", payload=None, query=None, expected=200, headers=None):
     url = base + "/api/" + path
     if query:
         url += "?" + urlencode(query)
     data = None if payload is None else json.dumps(payload).encode()
-    status, body = request(url, method, data, {"Content-Type": "application/json"})
+    status, body = request(url, method, data, {"Content-Type": "application/json", **(headers or {})})
     require(status == expected, f"{method} {path}: expected HTTP {expected}, got {status}")
     document = json.loads(body)
     require(document["code"] == (0 if expected == 200 else expected), f"{path}: unexpected business code")
@@ -88,6 +89,25 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_i18n(base, record):
+    require(api(base, "i18n/message", query={"name": "Lin"})["message"] == "你好，Lin", "default locale failed")
+    headers = {"Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8"}
+    require(api(base, "i18n/message", query={"name": "Lin"}, headers=headers)["message"] == "Hello, Lin",
+            "weighted Accept-Language resolution failed")
+    record("i18n-locale-negotiation")
+    api(base, "i18n/message", "PUT", query={"language": "en_US", "code": "dynamic", "text": "Updated {0}"})
+    require(api(base, "i18n/message", query={"code": "dynamic", "name": "Lin"}, headers=headers)["message"] == "Updated Lin",
+            "dynamic translation failed")
+    api(base, "i18n/refresh", "POST")
+    require(api(base, "i18n/message", query={"code": "dynamic", "name": "Lin"}, headers=headers)["message"] == "Updated Lin",
+            "refresh erased memory messages")
+    record("i18n-dynamic-refresh")
+    api(base, "i18n/message", "DELETE", query={"language": "en-US", "code": "dynamic"})
+    require(api(base, "i18n/message", query={"code": "dynamic"}, headers=headers)["message"] == "dynamic", "code fallback failed")
+    api(base, "i18n/message", "PUT", query={"language": "en;bad", "code": "x", "text": "y"}, expected=400)
+    record("i18n-removal-and-validation")
 
 
 def test_excel(base, record):
@@ -391,6 +411,8 @@ def main():
                         test_docs(base, record, environment)
                     elif args.starter == "excel":
                         test_excel(base, record)
+                    elif args.starter == "i18n":
+                        test_i18n(base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:

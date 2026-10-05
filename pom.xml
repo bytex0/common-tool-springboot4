@@ -27,6 +27,7 @@
         <module>local-cache-spring-boot-starter</module>
         <module>docs-spring-boot-starter</module>
         <module>excel-spring-boot-starter</module>
+        <module>i18n-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 

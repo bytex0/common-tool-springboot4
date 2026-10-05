@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: i18n-example
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18085}
+i18n:
+  enabled: true
+  provider: memory
+  default-locale: zh_CN
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
