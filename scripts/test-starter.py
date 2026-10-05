@@ -3,6 +3,7 @@
 
 import argparse
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import io
 import json
@@ -35,6 +36,7 @@ MODULES = {
     "desensitize": "desensitize-example",
     "dict": "dict-example",
     "multi-redis": "multi-redis-example",
+    "lock": "lock-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -94,6 +96,45 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_lock(base, peer, record):
+    kinds = ("REENTRANT_LOCK", "SEMAPHORE", "REDISSON_LOCK", "REDISSON_FAIR_LOCK",
+             "REDISSON_SPIN_LOCK", "REDISSON_WRITE_LOCK", "REDISSON_SEMAPHORE", "REDIS_TEMPLATE_SEMAPHORE")
+    for kind in kinds:
+        key = "lock-" + uuid.uuid4().hex
+        permits = 2 if "SEMAPHORE" in kind else 1
+        targets = [base] if kind in ("REENTRANT_LOCK", "SEMAPHORE") else [base, peer]
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = [executor.submit(api, targets[index % len(targets)], "lock/run",
+                                       query={"key": key, "type": kind, "permits": permits, "delay": 80}) for index in range(8)]
+            active = [future.result()["active"] for future in results]
+        require(max(active) <= permits, f"{kind}: concurrency limit exceeded")
+    record("lock-local-and-cross-instance-mutual-exclusion")
+    key = "rw-" + uuid.uuid4().hex
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        results = [executor.submit(api, (base, peer)[index % 2], "lock/run",
+                                   query={"key": key, "type": "REDISSON_READ_LOCK", "delay": 150}) for index in range(6)]
+        require(max(future.result()["active"] for future in results) > 1, "read locks did not permit concurrent readers")
+    record("lock-read-sharing")
+    key = "semaphore-" + uuid.uuid4().hex
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        held = executor.submit(api, base, "lock/run",
+                               query={"key": key, "type": "REDISSON_SEMAPHORE", "delay": 3500})
+        deadline = time.monotonic() + 5
+        while api(peer, "lock/active", query={"key": key})["active"] == 0:
+            require(time.monotonic() < deadline, "semaphore holder did not enter")
+            time.sleep(0.02)
+        time.sleep(1.8)
+        for _ in range(2):
+            api(peer, "lock/run", query={"key": key, "type": "REDISSON_SEMAPHORE", "wait": 0}, expected=423)
+        require(held.result()["active"] == 1, "semaphore holder result invalid")
+    record("lock-failed-acquire-ownership-and-renewal")
+    api(base, "lock/run", query={"key": key, "fail": "true"}, expected=500)
+    require(api(peer, "lock/run", query={"key": key})["active"] == 1, "failed business invocation leaked lock")
+    require(api(peer, "lock/annotated", query={"key": key})["active"] == 1, "annotation/SpEL invocation failed")
+    api(base, "lock/run", query={"key": key, "permits": 0}, expected=400)
+    record("lock-business-failure-annotation-and-validation")
 
 
 def test_multi_redis(base, record):
@@ -498,6 +539,7 @@ def main():
     report_path = module / "target" / "api-test-report.json"
     report = {"starter": args.starter, "passed": False, "checks": []}
     process = None
+    peer = None
     resources = []
     started = time.monotonic()
 
@@ -525,8 +567,8 @@ def main():
         if args.starter == "docs":
             environment["DOCS_USERNAME"] = "test-" + uuid.uuid4().hex
             environment["DOCS_PASSWORD"] = uuid.uuid4().hex
-        if args.starter == "multi-redis":
-            start_redis(resources, environment, cluster=True)
+        if args.starter in ("multi-redis", "lock"):
+            start_redis(resources, environment, cluster=args.starter == "multi-redis")
             record("redis-test-service-ready")
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
             log_path = Path(temporary) / "application.log"
@@ -539,6 +581,16 @@ def main():
                 try:
                     base = wait_for_application(process, log_path)
                     record("application-health")
+                    peer_base = None
+                    if args.starter == "lock":
+                        peer_path = Path(temporary) / "peer.log"
+                        with peer_path.open("w") as peer_log:
+                            peer = subprocess.Popen(
+                                ["java", "-jar", str(jar), "--server.port=0", "--server.address=127.0.0.1",
+                                 "--spring.output.ansi.enabled=never"],
+                                cwd=module, env=environment, stdout=peer_log, stderr=subprocess.STDOUT)
+                        peer_base = wait_for_application(peer, peer_path)
+                        record("peer-application-health")
                     if args.starter == "common":
                         test_common(base, record)
                     elif args.starter == "local-cache":
@@ -555,9 +607,12 @@ def main():
                         test_dict(base, record)
                     elif args.starter == "multi-redis":
                         test_multi_redis(base, record)
+                    elif args.starter == "lock":
+                        test_lock(base, peer_base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:
+                    stop_process(peer)
                     stop_process(process)
         record("application-stopped")
         if resources:
@@ -573,6 +628,7 @@ def main():
         print("FAIL " + message, file=sys.stderr)
         return 1
     finally:
+        stop_process(peer)
         stop_process(process)
         if resources:
             try:

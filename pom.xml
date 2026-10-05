@@ -31,6 +31,7 @@
         <module>desensitize-spring-boot-starter</module>
         <module>dict-spring-boot-starter</module>
         <module>multi-redis-spring-boot-starter</module>
+        <module>lock-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 

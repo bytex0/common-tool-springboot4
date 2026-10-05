@@ -11,7 +11,7 @@
 | 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 已完成并验证 |
 | 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 已完成并验证 |
 | 7 | `multi-redis-spring-boot-starter` | 多 Redis 连接及序列化 | 已完成并验证 |
-| 8 | `lock-spring-boot-starter` | 本地锁及分布式锁 | 待审查 |
+| 8 | `lock-spring-boot-starter` | 本地锁及分布式锁 | 已完成并验证 |
 | 9 | `rate-limiter-spring-boot-starter` | 限流与流量控制 | 待审查 |
 | 10 | `idempotent-spring-boot-starter` | 接口幂等与重复请求控制 | 待审查 |
 
@@ -54,3 +54,7 @@ Redis 相关验证使用专用临时实例或明确指定的测试连接，不�
 ## 多Redis
 
 改为Redisson 4命名单机/集群客户端，移除固定三个集群、静态路由、平台强制原生传输和不安全Codec回退。补充全配置预校验、部分创建失败清理及幂等关闭。全量111项Java测试、7项真实HTTP及Docker生命周期检查通过，包括3主节点集群。
+
+## 锁
+
+改为成功获取后才可释放的执行作用域，修复无条件unlock和信号量额度膨胀，支持本地引用清理、读写锁、许可令牌及续租。补充可信方法表达式工具。全量117项Java测试、9项真实检查通过，使用两个应用实例验证跨进程行为。
