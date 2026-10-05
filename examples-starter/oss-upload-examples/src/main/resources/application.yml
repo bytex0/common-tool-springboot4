@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: oss-upload-examples
+  servlet:
+    multipart:
+      max-file-size: 32MB
+      max-request-size: 34MB
+      file-size-threshold: 0
+
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18081}
+  shutdown: graceful
+
+oss:
+  enable: true
+  endpoint: ${OSS_ENDPOINT:http://127.0.0.1:19000}
+  region: ${OSS_REGION:us-east-1}
+  access-key: ${OSS_ACCESS_KEY:}
+  access-secret: ${OSS_ACCESS_SECRET:}
+  bucket-name: ${OSS_BUCKET:}
+  path-style-access: ${OSS_PATH_STYLE_ACCESS:true}
+  chunked-encoding-disabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- BOM 不继承根工程，避免根工程导入 BOM 时形成循环，也不覆盖使用方的 Boot 版本。 -->
+    <groupId>io.github.bytex0</groupId>
+    <artifactId>common-tool-springboot4-bom</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>common-tool-springboot4-bom</name>
+    <description>Common Tool Spring Boot 4.x 组件版本管理</description>
+    <url>https://github.com/archer099/common-tool-springboot4</url>
+
+    <properties>
+        <common-tool.version>4.0.0-SNAPSHOT</common-tool.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.github.bytex0</groupId>
+                <artifactId>oss-spring-boot-starter</artifactId>
+                <version>${common-tool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.github.bytex0</groupId>
+                <artifactId>common-tool-spring-boot-starter</artifactId>
+                <version>${common-tool.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>kk01001</id>
+            <name>linshiqiang</name>
+            <url>https://github.com/kk01001</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/archer099/common-tool-springboot4.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/archer099/common-tool-springboot4.git</developerConnection>
+        <url>https://github.com/archer099/common-tool-springboot4</url>
+    </scm>
+</project>
