@@ -11,6 +11,21 @@ swagger:
   basic-auth: true
   username: ${DOCS_USERNAME:}
   password: ${DOCS_PASSWORD:}
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+  documents:
+    - group: sample
+      name: integration
+      locations: classpath:docs/*.md
+springdoc:
+  api-docs:
+    version: OPENAPI_3_0
+  group-configs:
+    - group: sample
+      packages-to-scan: io.github.bytex0.docs.example
+      paths-to-match: /api/docs/**
 management:
   endpoints:
     web:

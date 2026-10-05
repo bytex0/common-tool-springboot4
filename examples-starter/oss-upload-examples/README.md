@@ -1,6 +1,6 @@
 # OSS Starter 测试示例
 
-本模块通过 Maven 真实依赖 `oss-spring-boot-starter`，使用自动配置注入 `OssClient`。它是本地测试接口，不是带权限控制的文件服务；默认只绑定 `127.0.0.1`，不要直接暴露到公网。
+本模块通过 Maven 真实依赖 `oss-spring-boot4-starter`，使用自动配置注入 `OssClient`。它是本地测试接口，不是带权限控制的文件服务；默认只绑定 `127.0.0.1`，不要直接暴露到公网。
 
 ## 运行
 

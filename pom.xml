@@ -51,6 +51,7 @@
         <common-tool.version>4.0.0-SNAPSHOT</common-tool.version>
         <aws-sdk.version>2.55.11</aws-sdk.version>
         <springdoc.version>3.0.3</springdoc.version>
+        <knife4j.version>4.5.0</knife4j.version>
         <fesod.version>2.0.2-incubating</fesod.version>
         <redisson.version>4.8.0</redisson.version>
         <guava.version>33.7.2-jre</guava.version>
@@ -65,6 +66,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.github.xiaoymin</groupId>
+                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+                <version>${knife4j.version}</version>
+            </dependency>
             <dependency><groupId>org.apache.sshd</groupId><artifactId>sshd-sftp</artifactId><version>${sshd.version}</version></dependency>
             <dependency><groupId>com.github.mwiede</groupId><artifactId>jsch</artifactId><version>${jsch.version}</version></dependency>
             <dependency><groupId>com.lmax</groupId><artifactId>disruptor</artifactId><version>${disruptor.version}</version></dependency>

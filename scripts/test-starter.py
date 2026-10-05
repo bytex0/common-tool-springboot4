@@ -5,6 +5,7 @@ import argparse
 import base64
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
+from html.parser import HTMLParser
 import io
 import json
 import os
@@ -18,7 +19,7 @@ import sys
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 from urllib.request import ProxyHandler, Request, build_opener
 import uuid
 import zipfile
@@ -47,6 +48,21 @@ MODULES = {
     "dynamic-threadpool": "dynamic-threadpool-example",
 }
 OPENER = build_opener(ProxyHandler({}))
+
+
+class HtmlAssets(HTMLParser):
+    """提取真实页面的本地脚本和样式链接，不执行 HTML 中的代码。"""
+
+    def __init__(self):
+        super().__init__()
+        self.urls = []
+
+    def handle_starttag(self, tag, attributes):
+        values = dict(attributes)
+        if tag == "script" and values.get("src"):
+            self.urls.append(values["src"])
+        if tag == "link" and values.get("rel") == "stylesheet" and values.get("href"):
+            self.urls.append(values["href"])
 
 
 def require(condition, message):
@@ -569,7 +585,7 @@ def test_excel(base, record):
 
 
 def test_docs(base, record, environment):
-    for path in ("/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui/index.html"):
+    for path in ("/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui/index.html", "/doc.html"):
         status, _ = request(base + path)
         require(status == 401, "documentation is accessible without credentials")
     status, _ = request(base + "/v3/api-docs", headers={"Authorization": "Basic invalid"})
@@ -583,12 +599,81 @@ def test_docs(base, record, environment):
     document = json.loads(body)
     require(document["info"]["title"] == "Common Tool Docs", "OpenAPI title mismatch")
     require("/api/docs/ping" in document["paths"], "OpenAPI omitted example controller")
+    require(document["components"]["securitySchemes"]["basicAuth"]["scheme"] == "basic",
+            "original OpenAPI Basic scheme missing")
+    require("x-openapi" in document, "Knife4j enhancement did not run against Springdoc 3")
     record("docs-openapi-generation")
+    status, body = request(base + "/v3/api-docs/swagger-config", headers=headers)
+    require(status == 200, "documentation group discovery failed")
+    groups = json.loads(body).get("urls", [])
+    group = next((item for item in groups if item.get("name") == "sample"), None)
+    require(group is not None, "original grouped documentation is missing")
+    group_url = urljoin(base, group["url"])
+    require(urlparse(group_url).netloc == urlparse(base).netloc, "unexpected external group URL")
+    status, body = request(group_url, headers=headers)
+    require(status == 200 and b"knife4j-boot4-markdown-fixture" in body, "group Markdown content missing")
+    require("/api/docs/ping" in json.loads(body)["paths"], "group omitted registered endpoint")
+    record("docs-group-discovery-and-content")
     status, body = request(base + "/swagger-ui/index.html", headers=headers)
     require(status == 200 and b"swagger-ui" in body.lower(), "Swagger UI assets unavailable")
     record("docs-ui")
+    status, body = request(base + "/doc.html", headers=headers)
+    require(status == 200, "original Knife4j entry unavailable")
+    assets = HtmlAssets()
+    assets.feed(body.decode("utf-8"))
+    require(len(assets.urls) >= 2, "Knife4j page is missing its actual assets")
+    for source in assets.urls:
+        url = urljoin(base + "/doc.html", source)
+        require(urlparse(url).netloc == urlparse(base).netloc, "unexpected external documentation asset")
+        require(request(url)[0] == 401, "Knife4j asset bypassed documentation authentication")
+        status, content = request(url, headers=headers)
+        require(status == 200 and len(content) > 0 and not content.lstrip().startswith(b"<!DOCTYPE"),
+                "Knife4j asset did not load")
+    record("docs-knife4j-entry-assets-and-enhancement")
     require(api(base, "docs/ping")["status"] == "UP", "documentation guard blocked business endpoint")
     record("docs-business-isolation")
+
+
+def test_docs_modes(jar, module, temporary, environment, record):
+    """通过独立进程验证 CORS 和生产保护，避免只在模拟过滤链中测试。"""
+    modes = {
+        "cors": ["--knife4j.cors=true", "--swagger.cors-allowed-origins=https://docs.example.test",
+                 "--swagger.cors-allow-credentials=true"],
+        "production": ["--knife4j.production=true", "--knife4j.cors=false"],
+    }
+    for mode, arguments in modes.items():
+        process = None
+        log_path = Path(temporary) / f"docs-{mode}.log"
+        try:
+            with log_path.open("w") as log:
+                process = subprocess.Popen(
+                    ["java", "-jar", str(jar), "--server.port=0", "--server.address=127.0.0.1",
+                     "--spring.output.ansi.enabled=never", *arguments],
+                    cwd=module, env=environment, stdout=log, stderr=subprocess.STDOUT)
+            base = wait_for_application(process, log_path)
+            if mode == "cors":
+                headers = {"Origin": "https://docs.example.test", "Access-Control-Request-Method": "GET",
+                           "Access-Control-Request-Headers": "authorization"}
+                with OPENER.open(Request(base + "/v3/api-docs", method="OPTIONS", headers=headers), timeout=20) as response:
+                    require(response.status == 200, "documentation CORS preflight failed")
+                    require(response.headers.get("Access-Control-Allow-Origin") == "https://docs.example.test",
+                            "documentation Origin allowlist failed")
+                    require(response.headers.get("Access-Control-Allow-Credentials") == "true",
+                            "credentialed CORS setting did not apply")
+                require(request(base + "/v3/api-docs", headers={"Origin": "https://docs.example.test"})[0] == 401,
+                        "CORS bypassed document authentication")
+                headers["Origin"] = "https://untrusted.example.test"
+                require(request(base + "/api/docs/ping", "OPTIONS", headers=headers)[0] == 403,
+                        "CORS accepted an untrusted Origin")
+                record("docs-real-cors-allowlist-and-authentication")
+            else:
+                for path in ("/doc.html", "/swagger-ui/index.html", "/v3/api-docs",
+                             "/v3/api-docs.yaml", "/v3/api-docs/sample"):
+                    require(request(base + path)[0] == 403, "production mode exposed documentation")
+                require(api(base, "docs/ping")["status"] == "UP", "production mode blocked business endpoint")
+                record("docs-real-production-protection")
+        finally:
+            stop_process(process)
 
 
 def test_local_cache(base, record):
@@ -877,6 +962,7 @@ def main():
                         test_local_cache(base, record)
                     elif args.starter == "docs":
                         test_docs(base, record, environment)
+                        test_docs_modes(jar, module, temporary, environment, record)
                     elif args.starter == "excel":
                         test_excel(base, record)
                     elif args.starter == "i18n":
