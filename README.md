@@ -1,5 +1,7 @@
 # Common Tool Spring Boot 4
 
+连续迁移进度：[第一批](docs/BATCH-01.md) / [第二批](docs/BATCH-02.md)。
+
 [common-tool](https://github.com/kk01001/common-tool) 的 Spring Boot 4.x 独立版本，沿用 Maven 多模块和独立 Starter 结构。
 
 本项目 Maven `groupId` 和 Java 根包名统一为 `io.github.bytex0`，源码目录对应 `io/github/bytex0`。

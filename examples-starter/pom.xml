@@ -28,6 +28,7 @@
         <module>lock-example</module>
         <module>rate-limiter-example</module>
         <module>idempotent-example</module>
+        <module>ip2region-example</module>
     </modules>
 
     <properties>

@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: ip2region-example
+ip2region:
+  enabled: true
+  db-path: classpath:ip2region.xdb

@@ -39,6 +39,7 @@ MODULES = {
     "lock": "lock-example",
     "rate-limiter": "rate-limiter-example",
     "idempotent": "idempotent-example",
+    "ip2region": "ip2region-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -98,6 +99,18 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_ip2region(base, record):
+    require(api(base, "ip/search", query={"ip": "8.8.8.8"})["country"] == "美国", "XDB lookup mismatch")
+    record("ip-real-xdb-query")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: api(base, "ip/search", query={"ip": "8.8.8.8"}), range(40)))
+    require(all(result == results[0] for result in results), "concurrent IP results differ")
+    record("ip-concurrent-queries")
+    for value in ("localhost", "::1", "256.0.0.1", "01.2.3.4", ""):
+        api(base, "ip/search", query={"ip": value}, expected=400)
+    record("ip-invalid-input")
 
 
 def test_idempotent(base, peer, record):
@@ -680,6 +693,8 @@ def main():
                         record("peer-application-health")
                     if args.starter == "common":
                         test_common(base, record)
+                    elif args.starter == "ip2region":
+                        test_ip2region(base, record)
                     elif args.starter == "local-cache":
                         test_local_cache(base, record)
                     elif args.starter == "docs":
