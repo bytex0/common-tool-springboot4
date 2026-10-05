@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | 1 | `local-cache-spring-boot-starter` | Caffeine 本地缓存、加载与统计 | 已完成并验证 |
 | 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 已完成并验证 |
-| 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 待审查 |
+| 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 已完成并验证 |
 | 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 待审查 |
 | 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 待审查 |
 | 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 待审查 |
@@ -34,3 +34,7 @@ Redis 相关验证使用专用临时实例或明确指定的测试连接，不�
 ## 接口文档
 
 改用 Boot 4 对应的 Springdoc 3；修复原 Basic 认证仅声明 scheme 而不限制访问的问题，取消默认凭据，保护 JSON/YAML/UI 路径，关闭开关返回 404，不干预业务认证。用户 OpenAPI Bean 可覆盖。全量 75 项 Java 测试、文档 6 项真实 HTTP 检查通过。
+
+## Excel
+
+改用 Apache Fesod 2 和统一有界模板，覆盖批次导入、多Sheet及ZIP导出。修复导出写错目标、空数据无有效文件、跨页超行、异步队列失败挂起、失败临时文件清理及把错误文本识别为空CSV成功的问题。明确XLSX格式、流所有权及事务边界。全量83项Java测试、6项真实HTTP检查通过。

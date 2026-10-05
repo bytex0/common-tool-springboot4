@@ -4,6 +4,7 @@
 import argparse
 import base64
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import ProxyHandler, Request, build_opener
 import uuid
+import zipfile
 import xml.etree.ElementTree as ET
 
 
@@ -26,6 +28,7 @@ MODULES = {
     "oss": "oss-upload-examples",
     "local-cache": "local-cache-example",
     "docs": "docs-example",
+    "excel": "excel-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -57,7 +60,7 @@ def api(base, path, method="GET", payload=None, query=None, expected=200):
     return document.get("data")
 
 
-def upload(base, path, content, query, method="POST"):
+def upload(base, path, content, query, method="POST", prefix="oss"):
     boundary = "common-tool-" + uuid.uuid4().hex
     body = (
         f"--{boundary}\r\n"
@@ -65,7 +68,7 @@ def upload(base, path, content, query, method="POST"):
         "Content-Type: application/octet-stream\r\n\r\n"
     ).encode() + content + f"\r\n--{boundary}--\r\n".encode()
     status, result = request(
-        base + "/api/oss/" + path + "?" + urlencode(query), method, body,
+        base + "/api/" + prefix + "/" + path + "?" + urlencode(query), method, body,
         {"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
     require(status == 200, f"{method} {path}: expected HTTP 200, got {status}")
@@ -85,6 +88,33 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_excel(base, record):
+    status, workbook = request(base + "/api/excel/export?count=11&rowsPerSheet=5")
+    require(status == 200 and zipfile.is_zipfile(io.BytesIO(workbook)), "response is not an XLSX file")
+    all_ids = []
+    for index, expected in enumerate((5, 5, 1)):
+        result = upload(base, "import", workbook, {"sheet": index}, prefix="excel")
+        require(result["total"] == expected and result["failed"] == 0, "sheet boundary count incorrect")
+        all_ids.extend(result["ids"])
+    require(all_ids == list(range(1, 12)), "sheet splitting lost or reordered data")
+    record("excel-multi-sheet-roundtrip")
+    status, content = request(base + "/api/excel/export?count=11&rowsPerSheet=5&zip=true")
+    require(status == 200, "ZIP export failed")
+    with zipfile.ZipFile(io.BytesIO(content)) as archive:
+        require(len(archive.namelist()) == 3, "incorrect workbook count in ZIP")
+        ids = []
+        for name in archive.namelist():
+            ids.extend(upload(base, "import", archive.read(name), {}, prefix="excel")["ids"])
+        require(ids == list(range(1, 12)), "ZIP partition data mismatch")
+    record("excel-zip-roundtrip")
+    status, empty = request(base + "/api/excel/export?count=0")
+    require(status == 200, "empty export failed")
+    require(upload(base, "import", empty, {}, prefix="excel")["total"] == 0, "empty workbook is invalid")
+    record("excel-empty-workbook")
+    api(base, "excel/export", query={"rowsPerSheet": 0}, expected=400)
+    record("excel-invalid-limit")
 
 
 def test_docs(base, record, environment):
@@ -359,6 +389,8 @@ def main():
                         test_local_cache(base, record)
                     elif args.starter == "docs":
                         test_docs(base, record, environment)
+                    elif args.starter == "excel":
+                        test_excel(base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:

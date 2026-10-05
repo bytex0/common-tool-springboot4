@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: excel-example
+  servlet:
+    multipart:
+      max-file-size: 16MB
+      max-request-size: 17MB
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18084}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

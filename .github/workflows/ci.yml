@@ -30,3 +30,5 @@ jobs:
         run: python3 scripts/test-starter.py local-cache --skip-build
       - name: Verify documentation starter HTTP API
         run: python3 scripts/test-starter.py docs --skip-build
+      - name: Verify Excel starter HTTP API
+        run: python3 scripts/test-starter.py excel --skip-build
