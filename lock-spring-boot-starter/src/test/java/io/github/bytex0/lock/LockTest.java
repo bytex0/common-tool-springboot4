@@ -23,6 +23,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class LockTest {
 
+    /**
+     * 自动配置不连接外部服务，可关闭并由用户模板覆盖。
+     */
     @Test
     void shouldConfigureWithoutConnectingAndRespectDisable() {
         ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -34,17 +37,29 @@ class LockTest {
                 .run(context -> assertThat(context.getBean(LockTemplate.class)).isSameAs(custom));
     }
 
+    /**
+     * 业务失败释放资源，空闲键不会无限积累。
+     *
+     * @throws Throwable 作用域业务异常
+     */
     @Test
     void shouldReleaseAfterBusinessFailureAndRemoveIdleKeys() throws Throwable {
         try (LockTemplate template = new LockTemplate(() -> null)) {
-            LockRule rule = LockRule.builder().key("key").build();
-            assertThatThrownBy(() -> template.execute(rule, () -> { throw new IllegalStateException("business"); }))
+            LockRule rule = LockRule.builder().key("key").lockType(LockType.REENTRANT_LOCK).build();
+            assertThatThrownBy(() -> template.execute(rule, () -> {
+                throw new IllegalStateException("business");
+            }))
                     .hasMessage("business");
             assertThat(template.activeLocalKeys()).isZero();
             assertThat(template.execute(rule, () -> "ok")).isEqualTo("ok");
         }
     }
 
+    /**
+     * 竞争失败不释放持有者的信号量，持有者退出后引用清理。
+     *
+     * @throws Exception 线程协调失败
+     */
     @Test
     void shouldNotReleaseSemaphoreWhenAcquireFailed() throws Exception {
         try (LockTemplate template = new LockTemplate(() -> null); var executor = Executors.newSingleThreadExecutor()) {
@@ -53,8 +68,14 @@ class LockTest {
             CountDownLatch release = new CountDownLatch(1);
             var held = executor.submit(() -> {
                 try {
-                    template.execute(rule, () -> { entered.countDown(); release.await(); return null; });
-                } catch (Throwable exception) { throw new RuntimeException(exception); }
+                    template.execute(rule, () -> {
+                        entered.countDown();
+                        release.await();
+                        return null;
+                    });
+                } catch (Throwable exception) {
+                    throw new RuntimeException(exception);
+                }
             });
             try {
                 assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
@@ -69,12 +90,15 @@ class LockTest {
         }
     }
 
+    /**
+     * 保留等待中断状态，Redis 缺失时报明确错误。
+     */
     @Test
     void shouldRestoreInterruptedStatusAndRejectMissingRedis() {
         try (LockTemplate template = new LockTemplate(() -> null)) {
             Thread.currentThread().interrupt();
             try {
-                assertThatThrownBy(() -> template.execute(LockRule.builder().key("key").build(), () -> null))
+                assertThatThrownBy(() -> template.execute(LockRule.builder().key("key").lockType(LockType.REENTRANT_LOCK).build(), () -> null))
                         .isInstanceOf(InterruptedException.class);
                 assertThat(Thread.currentThread().isInterrupted()).isTrue();
             } finally {

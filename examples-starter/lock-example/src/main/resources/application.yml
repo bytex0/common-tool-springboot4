@@ -1,6 +1,10 @@
 spring:
   application:
     name: lock-example
+  data:
+    redis:
+      url: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+      timeout: 2s
 server:
   address: 127.0.0.1
   port: ${SERVER_PORT:18089}

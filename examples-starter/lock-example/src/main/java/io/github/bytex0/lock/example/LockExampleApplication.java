@@ -11,5 +11,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class LockExampleApplication {
-    public static void main(String[] args) { SpringApplication.run(LockExampleApplication.class, args); }
+
+    /**
+     * 启动实际集成 Starter 的示例。
+     *
+     * @param args 启动参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(LockExampleApplication.class, args);
+    }
 }

@@ -404,24 +404,59 @@ def test_lock(base, peer, record):
                                    query={"key": key, "type": "REDISSON_READ_LOCK", "delay": 150}) for index in range(6)]
         require(max(future.result()["active"] for future in results) > 1, "read locks did not permit concurrent readers")
     record("lock-read-sharing")
-    key = "semaphore-" + uuid.uuid4().hex
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        held = executor.submit(api, base, "lock/run",
-                               query={"key": key, "type": "REDISSON_SEMAPHORE", "delay": 3500})
-        deadline = time.monotonic() + 5
-        while api(peer, "lock/active", query={"key": key})["active"] == 0:
-            require(time.monotonic() < deadline, "semaphore holder did not enter")
-            time.sleep(0.02)
-        time.sleep(1.8)
-        for _ in range(2):
-            api(peer, "lock/run", query={"key": key, "type": "REDISSON_SEMAPHORE", "wait": 0}, expected=423)
-        require(held.result()["active"] == 1, "semaphore holder result invalid")
-    record("lock-failed-acquire-ownership-and-renewal")
+    for holding, competing in (("REDISSON_READ_LOCK", "REDISSON_WRITE_LOCK"),
+                               ("REDISSON_WRITE_LOCK", "REDISSON_READ_LOCK")):
+        key = "rw-exclusive-" + uuid.uuid4().hex
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            held = executor.submit(api, base, "lock/run", query={"key": key, "type": holding, "delay": 500})
+            deadline = time.monotonic() + 5
+            while api(peer, "lock/active", query={"key": key})["active"] == 0:
+                require(time.monotonic() < deadline, "read/write holder did not enter")
+                time.sleep(0.01)
+            api(peer, "lock/run", query={"key": key, "type": competing, "wait": 0}, expected=423)
+            require(held.result()["active"] == 1, "read/write exclusion failed")
+    record("lock-read-write-shared-namespace")
+    for kind in ("REDISSON_SEMAPHORE", "REDIS_TEMPLATE_SEMAPHORE"):
+        key = "semaphore-" + uuid.uuid4().hex
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            held = executor.submit(api, base, "lock/run", query={"key": key, "type": kind, "delay": 3500})
+            deadline = time.monotonic() + 5
+            while api(peer, "lock/active", query={"key": key})["active"] == 0:
+                require(time.monotonic() < deadline, "semaphore holder did not enter")
+                time.sleep(0.02)
+            time.sleep(1.8)
+            for _ in range(2):
+                api(peer, "lock/run", query={"key": key, "type": kind, "wait": 0}, expected=423)
+            require(held.result()["active"] == 1, "semaphore holder result invalid")
+        require(api(peer, "lock/run", query={"key": key, "type": kind})["active"] == 1, "permit leaked")
+        record(f"lock-{kind.lower()}-ownership-and-renewal")
     api(base, "lock/run", query={"key": key, "fail": "true"}, expected=500)
     require(api(peer, "lock/run", query={"key": key})["active"] == 1, "failed business invocation leaked lock")
     require(api(peer, "lock/annotated", query={"key": key})["active"] == 1, "annotation/SpEL invocation failed")
     api(base, "lock/run", query={"key": key, "permits": 0}, expected=400)
     record("lock-business-failure-annotation-and-validation")
+    for kind in kinds:
+        key = "factory-" + uuid.uuid4().hex
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            targets = [base] if kind in ("REENTRANT_LOCK", "SEMAPHORE") else [base, peer]
+            results = [executor.submit(api, targets[index % len(targets)], "lock/factory",
+                                       query={"key": key, "type": kind}) for index in range(6)]
+            require(all(future.result()["active"] == 1 for future in results), f"{kind}: original factory lost exclusion")
+    record("lock-original-factory-all-backends")
+    key = "dynamic-" + uuid.uuid4().hex
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = [executor.submit(api, (base, peer)[index % 2], "lock/dynamic",
+                                   query={"key": key, "permits": 2}) for index in range(8)]
+        require(max(future.result()["active"] for future in results) <= 2, "dynamic full rule did not override disabled annotation")
+    api(base, "lock/dynamic", query={"key": key, "permits": 3}, expected=400)
+    api(base, "lock/dynamic", query={"key": key + "-invalid", "permits": 0}, expected=400)
+    record("lock-dynamic-rule-backend-and-capacity-validation")
+    key = "permits-" + uuid.uuid4().hex
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = [executor.submit(api, base, "lock/permits", query={"key": key, "permits": 2}) for _ in range(8)]
+        require(max(future.result()["active"] for future in results) <= 2, "dynamic permits did not apply")
+    api(base, "lock/permits", query={"key": key, "permits": 0}, expected=400)
+    record("lock-permits-expression")
 
 
 def test_multi_redis(base, record):
