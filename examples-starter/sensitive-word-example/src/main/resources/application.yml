@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: sensitive-word-example
+sensitive-word:
+  words: [bad, badly]
+  white-list: [badge]

@@ -40,6 +40,7 @@ MODULES = {
     "rate-limiter": "rate-limiter-example",
     "idempotent": "idempotent-example",
     "ip2region": "ip2region-example",
+    "sensitive-word": "sensitive-word-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -111,6 +112,21 @@ def test_ip2region(base, record):
     for value in ("localhost", "::1", "256.0.0.1", "01.2.3.4", ""):
         api(base, "ip/search", query={"ip": value}, expected=400)
     record("ip-invalid-input")
+
+
+def test_sensitive_word(base, record):
+    status, body = request(base + "/api/sensitive/process", "POST", " badge B A D! 😀".encode(),
+                           {"Content-Type": "text/plain; charset=utf-8"})
+    result = json.loads(body)
+    require(status == 200 and result["data"]["text"] == " badge *****! 😀", "sensitive replacement mismatch")
+    require(result["data"]["matches"] == [{"word": "B A D", "startIndex": 7, "endIndex": 12}],
+            "original match indices differ")
+    record("sensitive-whitelist-whitespace-unicode")
+    for text, expected in (("BAD", 400), ("badge", 200), ("x" * 65537, 400)):
+        status, body = request(base + "/api/sensitive/reject", "POST", text.encode(), {"Content-Type": "text/plain"})
+        require(status == expected and json.loads(body)["code"] == (0 if expected == 200 else expected),
+                "sensitive rejection policy failed")
+    record("sensitive-rejection-and-bounds")
 
 
 def test_idempotent(base, peer, record):
@@ -695,6 +711,8 @@ def main():
                         test_common(base, record)
                     elif args.starter == "ip2region":
                         test_ip2region(base, record)
+                    elif args.starter == "sensitive-word":
+                        test_sensitive_word(base, record)
                     elif args.starter == "local-cache":
                         test_local_cache(base, record)
                     elif args.starter == "docs":

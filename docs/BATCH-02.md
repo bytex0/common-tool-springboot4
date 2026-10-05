@@ -6,7 +6,7 @@
 | 顺序 | Starter | 状态 |
 | --- | --- | --- |
 | 1 | ip2region | 已完成并验证 |
-| 2 | sensitive-word | 待迁移 |
+| 2 | sensitive-word | 已完成并验证 |
 | 3 | disruptor | 待迁移 |
 | 4 | sftp | 待迁移 |
 | 5 | script | 待迁移 |
@@ -22,3 +22,8 @@
 
 135 项 Java 测试通过，示例真实 HTTP 5 项通过；使用固定 XDB 数据检验查询内容、
 并发稳定性及非法 IPv4 参数。示例进程已退出。
+
+## 敏感词
+
+140 项 Java 测试通过，真实 HTTP 4 项通过。验证白名单一致性、原文索引、
+Unicode、词库原子更新及文本长度上限。API 收敛及不再隐式修改 DTO 的变化见模块 README。
