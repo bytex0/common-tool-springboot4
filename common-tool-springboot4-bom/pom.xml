@@ -20,6 +20,7 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency><groupId>io.github.bytex0</groupId><artifactId>dict-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
             <dependency><groupId>io.github.bytex0</groupId><artifactId>desensitize-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
             <dependency><groupId>io.github.bytex0</groupId><artifactId>i18n-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>
             <dependency><groupId>io.github.bytex0</groupId><artifactId>excel-spring-boot-starter</artifactId><version>${common-tool.version}</version></dependency>

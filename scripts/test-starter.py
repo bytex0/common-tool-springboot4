@@ -31,6 +31,7 @@ MODULES = {
     "excel": "excel-example",
     "i18n": "i18n-example",
     "desensitize": "desensitize-example",
+    "dict": "dict-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -90,6 +91,21 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_dict(base, record):
+    sample = api(base, "dict/sample")
+    require(sample["state"] == "1" and sample["stateText"] == "启用", "renamed dictionary property failed")
+    require(sample["numeric"] == 1 and sample["numericText"] == "启用", "numeric dictionary failed")
+    record("dict-code-and-text")
+    api(base, "dict/status", "PUT", {"1": "已更新", "0": "停用"})
+    require(api(base, "dict/sample")["stateText"] == "已更新", "dictionary replacement failed")
+    api(base, "dict/refresh", "POST")
+    require(api(base, "dict/sample")["stateText"] == "已更新", "full dictionary refresh failed")
+    record("dict-refresh")
+    unknown = api(base, "dict/sample", query={"status": "unknown"})
+    require(unknown["state"] == "unknown" and "stateText" not in unknown, "unknown code changed or invented text")
+    record("dict-unknown-code")
 
 
 def test_desensitize(base, record):
@@ -429,6 +445,8 @@ def main():
                         test_i18n(base, record)
                     elif args.starter == "desensitize":
                         test_desensitize(base, record)
+                    elif args.starter == "dict":
+                        test_dict(base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:

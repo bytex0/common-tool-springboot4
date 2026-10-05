@@ -23,6 +23,7 @@
         <module>excel-example</module>
         <module>i18n-example</module>
         <module>desensitize-example</module>
+        <module>dict-example</module>
     </modules>
 
     <properties>

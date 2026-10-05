@@ -29,6 +29,7 @@
         <module>excel-spring-boot-starter</module>
         <module>i18n-spring-boot-starter</module>
         <module>desensitize-spring-boot-starter</module>
+        <module>dict-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 

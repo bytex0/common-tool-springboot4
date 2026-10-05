@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: dict-example
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18087}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
