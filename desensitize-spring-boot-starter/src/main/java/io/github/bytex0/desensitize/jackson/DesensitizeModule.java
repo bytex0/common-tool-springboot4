@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Jackson脱敏(DesensitizeModule)仅为显式标记的String属性分配独立序列化器
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 public class DesensitizeModule extends SimpleModule {

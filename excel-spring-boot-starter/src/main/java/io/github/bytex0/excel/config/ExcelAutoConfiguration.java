@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Bean;
 /**
  * Excel(ExcelAutoConfiguration)自动配置，不创建无界后台任务
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:36:55
  */
 @AutoConfiguration

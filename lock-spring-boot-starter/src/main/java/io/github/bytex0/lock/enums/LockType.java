@@ -3,7 +3,7 @@ package io.github.bytex0.lock.enums;
 /**
  * 锁类型(LockType)本地及Redis作用域
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 public enum LockType {

@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * 多Redis(MultiRedisProperties)命名连接配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:18:09
  */
 @Getter
@@ -37,7 +37,7 @@ public class MultiRedisProperties {
     /**
      * Redis连接(Connection)单机或集群参数
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 16:18:09
      */
     @Getter

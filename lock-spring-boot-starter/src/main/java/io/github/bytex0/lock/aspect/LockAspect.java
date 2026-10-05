@@ -15,7 +15,7 @@ import java.lang.reflect.Method;
 /**
  * 锁切面(LockAspect)通过执行模板管理所有权
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @Aspect

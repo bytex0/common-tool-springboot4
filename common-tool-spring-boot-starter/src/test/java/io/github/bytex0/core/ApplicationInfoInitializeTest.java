@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 应用启动信息(ApplicationInfoInitializeTest)事件处理测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:29:12
  */
 @ExtendWith(OutputCaptureExtension.class)

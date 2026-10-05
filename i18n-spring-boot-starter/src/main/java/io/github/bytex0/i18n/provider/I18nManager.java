@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * 国际化管理(I18nManager)动态消息维护
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 public class I18nManager {

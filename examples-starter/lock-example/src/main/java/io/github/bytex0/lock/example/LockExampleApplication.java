@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 锁示例(LockExampleApplication)启动入口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @SpringBootApplication

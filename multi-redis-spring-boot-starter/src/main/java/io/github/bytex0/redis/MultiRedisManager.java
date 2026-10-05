@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * 多Redis管理(MultiRedisManager)显式路由、配置预校验及客户端生命周期
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:18:09
  */
 public class MultiRedisManager implements AutoCloseable {

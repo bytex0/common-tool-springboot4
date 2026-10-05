@@ -14,7 +14,7 @@ import java.time.Duration;
 /**
  * 锁业务(LockService)通过共享计数验证跨实例并发限制
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @Service

@@ -6,7 +6,7 @@ import io.github.bytex0.desensitize.enums.DesensitizeType;
 /**
  * 脱敏样例(MaskProfile)固定合成数据
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 public class MaskProfile {

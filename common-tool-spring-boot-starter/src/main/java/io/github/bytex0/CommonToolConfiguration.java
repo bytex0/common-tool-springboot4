@@ -12,7 +12,7 @@ import org.springframework.core.env.Environment;
 /**
  * 通用工具(CommonToolConfiguration)基础自动配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:26:50
  */
 @AutoConfiguration

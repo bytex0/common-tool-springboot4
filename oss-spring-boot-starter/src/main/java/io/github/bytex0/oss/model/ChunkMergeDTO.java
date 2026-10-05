@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 对象存储分片(ChunkMergeDTO)合并参数
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:42:56
  */
 @Data

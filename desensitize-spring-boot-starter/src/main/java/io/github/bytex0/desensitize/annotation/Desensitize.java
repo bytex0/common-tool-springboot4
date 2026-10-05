@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
 /**
  * 字段脱敏(Desensitize)出站JSON规则
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 @Retention(RetentionPolicy.RUNTIME)

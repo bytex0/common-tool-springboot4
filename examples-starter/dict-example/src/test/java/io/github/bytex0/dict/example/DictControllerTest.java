@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 字典接口(DictControllerTest)实际JSON补充字段验证
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 @SpringBootTest

@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 /**
  * 对象存储配置(OssConfigurationTest)自动装配及资源生命周期测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:57:26
  */
 class OssConfigurationTest {

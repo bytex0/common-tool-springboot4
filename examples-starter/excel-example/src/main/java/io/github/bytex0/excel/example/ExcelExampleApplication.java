@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * Excel示例(ExcelExampleApplication)启动入口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:36:55
  */
 @SpringBootApplication

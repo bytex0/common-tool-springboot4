@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * 本地缓存(LocalCaffeineCacheFactory)当前应用上下文的命名缓存注册与管理
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:14:19
  */
 public class LocalCaffeineCacheFactory implements SmartInitializingSingleton, DisposableBean {

@@ -7,7 +7,7 @@ import org.apache.fesod.sheet.annotation.ExcelProperty;
 /**
  * Excel行(ExcelRow)示例数据模型
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:36:55
  */
 @Getter

@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 内存字典(InMemoryDictLoader)可原子替换的数据源
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 public class InMemoryDictLoader implements DictLoader {

@@ -9,7 +9,7 @@ import java.util.Locale;
 /**
  * 国际化服务(I18nService)当前语言及指定语言消息查询
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 public class I18nService {

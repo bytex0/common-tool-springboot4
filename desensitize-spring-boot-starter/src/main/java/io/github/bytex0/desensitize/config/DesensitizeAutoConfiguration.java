@@ -13,7 +13,7 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 数据脱敏(DesensitizeAutoConfiguration)自动配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 @AutoConfiguration

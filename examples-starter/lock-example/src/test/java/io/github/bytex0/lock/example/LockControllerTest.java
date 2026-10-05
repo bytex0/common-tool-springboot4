@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 锁接口(LockControllerTest)状态响应测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @WebMvcTest(LockController.class)

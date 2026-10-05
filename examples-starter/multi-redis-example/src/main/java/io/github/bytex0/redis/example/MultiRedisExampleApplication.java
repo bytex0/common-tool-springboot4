@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 多Redis示例(MultiRedisExampleApplication)启动入口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:18:09
  */
 @SpringBootApplication

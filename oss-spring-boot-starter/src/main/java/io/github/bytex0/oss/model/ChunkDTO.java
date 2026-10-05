@@ -6,7 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 对象存储分片(ChunkDTO)上传参数
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:42:56
  */
 @Data

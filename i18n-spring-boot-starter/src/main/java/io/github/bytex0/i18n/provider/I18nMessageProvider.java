@@ -6,7 +6,7 @@ import java.util.Map;
 /**
  * 国际化(I18nMessageProvider)消息来源接口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 public interface I18nMessageProvider {

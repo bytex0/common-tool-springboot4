@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 /**
  * 字典(DictTest)缓存、数据库边界及JSON字段回归
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 class DictTest {
@@ -96,7 +96,7 @@ class DictTest {
     /**
      * 字典样例(Sample)重命名与省略属性
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 16:08:16
      */
     public static class Sample {
@@ -119,7 +119,7 @@ class DictTest {
     /**
      * 字段冲突(Conflict)验证配置错误
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 16:08:16
      */
     public static class Conflict {

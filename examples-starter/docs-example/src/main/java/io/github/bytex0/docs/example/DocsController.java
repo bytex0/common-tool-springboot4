@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * 接口文档示例(DocsController)用于验证 OpenAPI 扫描与业务接口不受文档认证影响
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:29:19
  */
 @RestController

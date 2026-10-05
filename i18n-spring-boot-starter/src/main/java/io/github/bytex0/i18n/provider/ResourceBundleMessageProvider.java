@@ -15,7 +15,7 @@ import java.util.ResourceBundle;
 /**
  * 资源消息(ResourceBundleMessageProvider)有界缓存及标准语言回退
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 public class ResourceBundleMessageProvider implements I18nMessageProvider {

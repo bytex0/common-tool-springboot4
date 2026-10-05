@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 /**
  * 锁执行(LockTemplate)以作用域保证成功获取后才释放
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 public class LockTemplate implements AutoCloseable {
@@ -176,7 +176,7 @@ public class LockTemplate implements AutoCloseable {
     /**
      * 获取作用域(Guard)仅表示成功持有的资源
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 16:36:32
      */
     @FunctionalInterface
@@ -187,7 +187,7 @@ public class LockTemplate implements AutoCloseable {
     /**
      * 本地锁槽(LocalSlot)持有者及等待者引用
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 16:36:32
      */
     private static class LocalSlot {

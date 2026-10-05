@@ -21,7 +21,7 @@ import java.util.Base64;
 /**
  * 文档访问(DocsAccessFilter)仅保护文档路径，不改变业务接口认证
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:29:19
  */
 @Order(Ordered.HIGHEST_PRECEDENCE + 20)

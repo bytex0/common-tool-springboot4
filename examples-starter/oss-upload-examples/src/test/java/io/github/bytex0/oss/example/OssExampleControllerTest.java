@@ -37,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 对象存储接口(OssExampleControllerTest)参数绑定、JSON 和错误响应测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:57:26
  */
 @WebMvcTest(controllers = OssExampleController.class, properties = "oss.bucket-name=test-bucket")
@@ -124,7 +124,7 @@ class OssExampleControllerTest {
     /**
      * 对象存储示例(PropertiesConfiguration)隔离测试配置
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 14:57:26
      */
     @TestConfiguration(proxyBeanMethods = false)

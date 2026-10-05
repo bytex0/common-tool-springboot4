@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 脱敏接口(MaskController)验证单对象及嵌套集合的出站序列化
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 @RestController

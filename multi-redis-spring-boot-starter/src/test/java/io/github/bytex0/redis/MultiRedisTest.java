@@ -21,7 +21,7 @@ import static org.mockito.Mockito.verify;
 /**
  * 多Redis(MultiRedisTest)路由配置、失败清理和安全JSON测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:18:09
  */
 class MultiRedisTest {

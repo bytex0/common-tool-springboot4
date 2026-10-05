@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 通用响应(ApiResponseTest)工厂方法与 Jackson 3 兼容性测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:29:12
  */
 class ApiResponseTest {

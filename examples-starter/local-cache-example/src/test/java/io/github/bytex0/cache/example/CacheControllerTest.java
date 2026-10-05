@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 缓存示例(CacheControllerTest)真实 Starter 集成及接口验证
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:16:06
  */
 @SpringBootTest

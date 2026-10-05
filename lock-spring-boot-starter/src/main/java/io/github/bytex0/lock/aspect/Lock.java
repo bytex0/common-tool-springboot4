@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 锁注解(Lock)声明可信SpEL及等待策略
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @Retention(RetentionPolicy.RUNTIME)

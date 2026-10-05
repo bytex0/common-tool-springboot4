@@ -28,7 +28,7 @@ import java.util.zip.ZipOutputStream;
 /**
  * Excel(ExcelTemplate)有界批次导入、多Sheet及ZIP流式导出
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:36:55
  */
 public class ExcelTemplate {
@@ -145,7 +145,7 @@ public class ExcelTemplate {
     /**
      * 导入结果(ImportResult)成功与失败行计数
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 15:36:55
      * @param success 成功行数
      * @param failed 失败行数
@@ -159,7 +159,7 @@ public class ExcelTemplate {
     /**
      * 批次游标(BatchCursor)跨Sheet边界拆分，始终仅保留一个批次
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 15:36:55
      */
     private static class BatchCursor<T> {
@@ -209,7 +209,7 @@ public class ExcelTemplate {
     /**
      * 输出流(NonClosingOutputStream)允许关闭ZIP而不关闭调用方流
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 15:36:55
      */
     private static class NonClosingOutputStream extends FilterOutputStream {

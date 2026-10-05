@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * 本地缓存示例(DemoCache)短期缓存及加载计数
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:14:19
  */
 @Component

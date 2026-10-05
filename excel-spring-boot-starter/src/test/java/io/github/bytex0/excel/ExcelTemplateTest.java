@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 /**
  * Excel(ExcelTemplateTest)边界拆分、批次导入与失败传播测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:36:55
  */
 class ExcelTemplateTest {
@@ -123,7 +123,7 @@ class ExcelTemplateTest {
     /**
      * 测试行(Row)数据模型
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 15:36:55
      */
     public static class Row {

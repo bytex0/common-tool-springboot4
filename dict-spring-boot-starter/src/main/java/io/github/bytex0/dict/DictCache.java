@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * 字典缓存(DictCache)上下文隔离、不可变快照及失败保留
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 public class DictCache {

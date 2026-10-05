@@ -5,7 +5,7 @@ import io.github.bytex0.desensitize.annotation.Desensitize;
 /**
  * 脱敏处理器(DesensitizeHandler)业务自定义策略
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 @FunctionalInterface

@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * 字典接口(DictController)验证翻译及刷新
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 @RestController
@@ -57,7 +57,7 @@ public class DictController {
     /**
      * 字典模型(Sample)重命名及数值类型
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 16:08:16
      */
     public static class Sample {

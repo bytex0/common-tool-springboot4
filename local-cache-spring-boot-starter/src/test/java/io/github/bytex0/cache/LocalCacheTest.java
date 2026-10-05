@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * 本地缓存(LocalCacheTest)初始化、并发加载、容量、过期及失败行为测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:16:06
  */
 class LocalCacheTest {

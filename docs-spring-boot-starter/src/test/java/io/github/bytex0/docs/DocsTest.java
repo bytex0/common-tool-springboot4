@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * 接口文档(DocsTest)开关、用户覆盖及认证边界测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:29:19
  */
 class DocsTest {

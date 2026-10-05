@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * 本地缓存配置(LocalCacheConfigurationTest)Bean 生命周期及上下文隔离测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:16:06
  */
 class LocalCacheConfigurationTest {

@@ -5,7 +5,7 @@ import java.util.Map;
 /**
  * 字典来源(DictLoader)应用扩展接口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 public interface DictLoader {

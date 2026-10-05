@@ -9,7 +9,7 @@ import java.util.Locale;
 /**
  * 消息源(CustomMessageSource)复用Spring默认文本及格式化语义
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 public class CustomMessageSource extends AbstractMessageSource {

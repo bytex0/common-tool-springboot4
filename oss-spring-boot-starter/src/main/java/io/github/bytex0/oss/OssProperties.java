@@ -11,7 +11,7 @@ import java.time.Duration;
 /**
  * 对象存储(OssProperties)连接配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:42:56
  */
 @Getter

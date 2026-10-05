@@ -5,7 +5,7 @@ import io.github.bytex0.desensitize.handler.DesensitizeHandler;
 /**
  * 自定义脱敏(CustomMaskHandler)验证通过Spring构造参数创建
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 public class CustomMaskHandler implements DesensitizeHandler {

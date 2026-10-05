@@ -13,7 +13,7 @@ import java.io.IOException;
 /**
  * 对象存储示例(OssExampleExceptionHandler)接口错误转换，不回传 SDK 请求或凭据
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:55:00
  */
 @RestControllerAdvice(assignableTypes = OssExampleController.class)

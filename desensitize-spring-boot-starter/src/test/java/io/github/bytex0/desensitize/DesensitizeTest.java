@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * 数据脱敏(DesensitizeTest)字段隔离、完整策略及错误保护测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 class DesensitizeTest {
@@ -87,7 +87,7 @@ class DesensitizeTest {
     /**
      * 脱敏测试(Sample)不同字段规则
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 15:57:28
      */
     public static class Sample {
@@ -113,7 +113,7 @@ class DesensitizeTest {
     /**
      * 无效配置(Invalid)非字符串字段测试
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 15:57:28
      */
     public static class Invalid {

@@ -66,7 +66,7 @@ import java.util.Set;
 /**
  * 对象存储(S3OssClient)AWS SDK v2 同步实现
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:42:56
  */
 public class S3OssClient implements OssClient {
@@ -430,7 +430,7 @@ public class S3OssClient implements OssClient {
     /**
      * 对象传输(ProgressInputStream)读取进度流
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 14:42:56
      */
     private static class ProgressInputStream extends FilterInputStream {

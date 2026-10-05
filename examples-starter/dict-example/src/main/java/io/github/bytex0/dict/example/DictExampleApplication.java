@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * 字典示例(DictExampleApplication)启动及测试数据
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 @SpringBootApplication

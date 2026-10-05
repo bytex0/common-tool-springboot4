@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 脱敏策略(DesensitizeHandlerFactory)完整默认策略和Spring扩展
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 public class DesensitizeHandlerFactory implements SmartInitializingSingleton {

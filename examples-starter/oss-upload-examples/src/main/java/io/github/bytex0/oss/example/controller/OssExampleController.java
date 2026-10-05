@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * 对象存储联调(OssExampleController)测试接口，仅操作配置的测试桶
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:55:00
  */
 @RestController

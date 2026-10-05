@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * 基础工具示例(DemoController)接口入口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:26:50
  */
 @RestController

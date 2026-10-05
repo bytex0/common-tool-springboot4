@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 通用工具自动配置(CommonToolConfigurationTest)测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:29:12
  */
 class CommonToolConfigurationTest {

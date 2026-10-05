@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * 锁接口(LockController)并发、失败释放及注解测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @RestController

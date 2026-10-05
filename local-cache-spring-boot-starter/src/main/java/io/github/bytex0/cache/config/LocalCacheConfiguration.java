@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Bean;
 /**
  * 本地缓存(LocalCacheConfiguration)自动配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:14:19
  */
 @AutoConfiguration

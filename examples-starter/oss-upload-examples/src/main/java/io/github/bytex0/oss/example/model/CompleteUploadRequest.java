@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * 分片合并(CompleteUploadRequest)接口参数
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:55:00
  */
 @Getter
@@ -46,7 +46,7 @@ public class CompleteUploadRequest {
     /**
      * 已上传分片(PartDTO)接口模型，与 SDK 内部类型隔离
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 14:55:00
      */
     @Getter

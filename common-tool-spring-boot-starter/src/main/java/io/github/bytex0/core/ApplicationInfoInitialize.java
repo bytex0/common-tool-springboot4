@@ -9,7 +9,7 @@ import org.springframework.core.env.Environment;
 /**
  * 应用信息(ApplicationInfoInitialize)启动日志初始化
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:26:50
  */
 public class ApplicationInfoInitialize implements ApplicationListener<ApplicationReadyEvent> {

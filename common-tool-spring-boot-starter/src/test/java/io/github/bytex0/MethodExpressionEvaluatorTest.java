@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 方法表达式(MethodExpressionEvaluatorTest)参数别名及Bean解析测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 class MethodExpressionEvaluatorTest {

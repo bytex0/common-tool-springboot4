@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * 对象存储(OssUtil)对象路径工具
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:42:56
  */
 public final class OssUtil {

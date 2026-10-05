@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 /**
  * 字典注解(Dict)保留code并追加文本属性
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 @Retention(RetentionPolicy.RUNTIME)

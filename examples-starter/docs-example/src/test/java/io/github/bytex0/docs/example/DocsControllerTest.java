@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 文档示例(DocsControllerTest)真实文档生成与认证测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:29:19
  */
 @SpringBootTest(properties = {"swagger.username=test-user", "swagger.password=test-pass"})

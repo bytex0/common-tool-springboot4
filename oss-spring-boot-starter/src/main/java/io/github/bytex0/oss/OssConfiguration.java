@@ -25,7 +25,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 /**
  * 对象存储(OssConfiguration)自动配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:42:56
  */
 @AutoConfiguration
@@ -37,7 +37,7 @@ public class OssConfiguration {
     /**
      * 默认 S3 实现(DefaultClientConfiguration)配置，业务自定义 OssClient 时整体退让
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 14:42:56
      */
     @Configuration(proxyBeanMethods = false)

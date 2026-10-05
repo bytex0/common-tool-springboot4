@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * 国际化接口(I18nController)语言协商和动态消息测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 @RestController

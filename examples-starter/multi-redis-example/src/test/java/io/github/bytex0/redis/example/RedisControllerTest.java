@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Redis接口(RedisControllerTest)路由和错误响应测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:18:09
  */
 @WebMvcTest(RedisController.class)

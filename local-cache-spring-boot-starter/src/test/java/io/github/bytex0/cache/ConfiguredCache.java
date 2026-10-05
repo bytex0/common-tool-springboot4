@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 可控缓存(ConfiguredCache)验证子类构造参数及虚拟时钟的测试实现
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:16:06
  */
 class ConfiguredCache extends AbstractLocalCaffeineCache<String, String> {

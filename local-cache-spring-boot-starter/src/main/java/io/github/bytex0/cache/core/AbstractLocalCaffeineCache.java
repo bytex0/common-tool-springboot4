@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 /**
  * 本地缓存(AbstractLocalCaffeineCache)支持过期、容量限制与原子加载的基类
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:14:19
  */
 public abstract class AbstractLocalCaffeineCache<K, V> {

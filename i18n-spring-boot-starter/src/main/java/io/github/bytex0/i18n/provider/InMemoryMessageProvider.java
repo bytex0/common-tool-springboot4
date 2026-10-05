@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 内存消息(InMemoryMessageProvider)不可变快照与原子更新
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 public class InMemoryMessageProvider implements I18nMessageProvider {

@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 接口文档示例(DocsExampleApplication)启动入口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:29:19
  */
 @SpringBootApplication

@@ -14,7 +14,7 @@ import org.springframework.core.env.Environment;
 /**
  * 字典(DictAutoConfiguration)自动配置，无数据源时使用内存加载器
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 @AutoConfiguration

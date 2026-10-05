@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 对象存储示例(OssUploadExampleApplication)启动入口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:55:00
  */
 @SpringBootApplication

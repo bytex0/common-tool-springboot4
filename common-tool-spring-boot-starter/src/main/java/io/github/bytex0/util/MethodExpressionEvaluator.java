@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 方法表达式(MethodExpressionEvaluator)仅评估代码中声明的可信SpEL
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 public class MethodExpressionEvaluator {

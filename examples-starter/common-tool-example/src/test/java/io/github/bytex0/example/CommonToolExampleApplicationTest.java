@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 基础示例(CommonToolExampleApplicationTest)自动装配与 HTTP 集成测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:29:12
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

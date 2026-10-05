@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * 对象存储(OssClient)S3 兼容操作接口，返回类型采用 AWS SDK v2
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:42:56
  */
 public interface OssClient {

@@ -16,7 +16,7 @@ import org.springframework.core.env.Environment;
 /**
  * 接口文档(SwaggerAutoConfiguration)自动配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:29:19
  */
 @AutoConfiguration(beforeName = "org.springdoc.core.configuration.SpringDocConfiguration")

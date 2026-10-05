@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Bean;
 /**
  * 锁配置(LockConfiguration)本地默认可用，Redis按需获取
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @AutoConfiguration

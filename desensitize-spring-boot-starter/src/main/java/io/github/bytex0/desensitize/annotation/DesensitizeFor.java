@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 /**
  * 脱敏扩展(DesensitizeFor)声明替换的默认策略
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 @Retention(RetentionPolicy.RUNTIME)

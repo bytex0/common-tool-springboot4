@@ -66,7 +66,7 @@ import static org.mockito.Mockito.when;
 /**
  * S3 客户端(S3OssClientTest)流处理、分页和边界行为测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:57:26
  */
 class S3OssClientTest {

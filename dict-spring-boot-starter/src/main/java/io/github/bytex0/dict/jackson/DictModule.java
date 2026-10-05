@@ -19,7 +19,7 @@ import java.util.Set;
 /**
  * 字典JSON(DictModule)尊重属性名称、包含规则和已有序列化器
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 public class DictModule extends SimpleModule {

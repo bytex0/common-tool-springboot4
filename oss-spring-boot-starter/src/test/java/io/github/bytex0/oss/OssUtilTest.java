@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 对象路径(OssUtilTest)组合与编码测试
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:57:26
  */
 class OssUtilTest {

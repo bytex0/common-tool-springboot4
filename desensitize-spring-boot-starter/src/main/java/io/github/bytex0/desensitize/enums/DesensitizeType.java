@@ -3,7 +3,7 @@ package io.github.bytex0.desensitize.enums;
 /**
  * 脱敏类型(DesensitizeType)内置策略
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 public enum DesensitizeType {

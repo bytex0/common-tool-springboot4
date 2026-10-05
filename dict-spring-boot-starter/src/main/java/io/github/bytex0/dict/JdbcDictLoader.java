@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * 数据库字典(JdbcDictLoader)可信标识符映射及参数绑定
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:08:16
  */
 public class JdbcDictLoader implements DictLoader {
@@ -67,7 +67,7 @@ public class JdbcDictLoader implements DictLoader {
     /**
      * 字典表映射(TableMapping)仅允许可信SQL标识符
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 16:08:16
      * @param table 表名
      * @param codeColumn code列

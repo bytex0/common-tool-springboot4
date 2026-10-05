@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 锁规则(LockRule)等待、租约及并发额度
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:36:32
  */
 @Getter

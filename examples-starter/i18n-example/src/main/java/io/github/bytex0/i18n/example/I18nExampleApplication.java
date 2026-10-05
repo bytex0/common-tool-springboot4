@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Bean;
 /**
  * 国际化示例(I18nExampleApplication)启动及测试消息初始化
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 @SpringBootApplication

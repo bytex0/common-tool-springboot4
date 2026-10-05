@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 /**
  * 脱敏示例(DesensitizeExampleApplication)启动入口
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 @SpringBootApplication

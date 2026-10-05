@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * 通用工具(CommonToolProperties)基础配置属性
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 14:26:50
  */
 @Getter

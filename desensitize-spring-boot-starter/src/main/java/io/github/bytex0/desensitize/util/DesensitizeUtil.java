@@ -6,7 +6,7 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 脱敏JSON(DesensitizeUtil)实例工具，使用应用配置的Jackson 3映射器
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:57:28
  */
 public class DesensitizeUtil {

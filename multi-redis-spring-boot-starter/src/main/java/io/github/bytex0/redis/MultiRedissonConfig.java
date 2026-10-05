@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Primary;
 /**
  * 多Redis(MultiRedissonConfig)按需自动配置
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 16:18:09
  */
 @AutoConfiguration

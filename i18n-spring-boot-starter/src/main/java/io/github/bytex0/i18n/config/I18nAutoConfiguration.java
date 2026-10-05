@@ -23,7 +23,7 @@ import org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver;
 /**
  * 国际化(I18nAutoConfiguration)自动配置，核心可用于非Web应用
  *
- * @author linshiqiang
+ * @author bytex0
  * @since 2026-10-05 15:49:14
  */
 @AutoConfiguration(beforeName = {"org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration",
@@ -63,7 +63,7 @@ public class I18nAutoConfiguration {
     /**
      * Web语言(WebConfiguration)按标准Accept-Language解析请求语言
      *
-     * @author linshiqiang
+     * @author bytex0
      * @since 2026-10-05 15:49:14
      */
     @Configuration(proxyBeanMethods = false)
