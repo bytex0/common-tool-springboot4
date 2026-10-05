@@ -233,6 +233,7 @@ def test_sftp(base, record, environment):
                 "SFTP roundtrip content mismatch")
         require(name in api(base, "sftp/files")["names"], "SFTP listing lost upload")
         record("sftp-real-stream-roundtrip")
+        test_sftp_named_pools(base, name, content, record)
         for _ in range(5):
             api(base, "sftp/file/missing.bin", expected=404)
         require(api(base, "sftp/files")["active"] == 0, "SFTP failures exhausted pool")
@@ -256,6 +257,57 @@ def test_sftp(base, record, environment):
             api(base, "sftp/file/" + name, "DELETE")
             require(name not in api(base, "sftp/files")["names"], "SFTP test file remains")
             record("sftp-file-cleanup")
+
+
+def test_sftp_named_pools(base, filename, content, record):
+    """验证原命名池、借还入口和完整通道作用域，不修改本次测试目录之外的资源。"""
+    pool = "pool-" + uuid.uuid4().hex
+    target = uuid.uuid4().hex + ".bin"
+    path = "sftp/pools/" + pool
+    renamed = False
+    try:
+        api(base, path, "POST")
+        api(base, path, "POST")
+        stats = api(base, path)
+        require(stats["maxTotal"] == stats["maxIdle"] == 1 and stats["minIdle"] == 0, "named pool configuration ignored")
+        original_directory = api(base, path + "/directory")["directory"]
+        changed = api(base, path + "/directory", query={"change": "true"})["directory"]
+        require(changed.endswith("/upload") and changed != original_directory, "channel callback did not change directory")
+        require(api(base, path + "/directory")["directory"] == original_directory, "pool leaked remote working directory")
+        api(base, path + "/rename", "POST", query={"source": filename, "target": target})
+        renamed = True
+        status, received = request(base + "/api/sftp/file/" + target)
+        require(status == 200 and hashlib.sha256(received).digest() == hashlib.sha256(content).digest(),
+                "legacy borrowed-channel rename changed content")
+        api(base, path + "/rename", "POST", query={"source": target, "target": filename})
+        renamed = False
+        record("sftp-named-pool-legacy-channel-and-directory-reset")
+
+        result = api(base, path + "/disconnect", "POST")
+        require(not result["sessionConnected"] and result["active"] == 0, "disconnected return leaked SSH session")
+        require(api(base, path + "/directory")["directory"] == original_directory, "pool did not recover disconnected channel")
+        record("sftp-disconnect-closes-session-and-recovers")
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            holding = executor.submit(api, base, path + "/hold", query={"delay": 800})
+            deadline = time.monotonic() + 5
+            while api(base, path)["active"] == 0:
+                require(time.monotonic() < deadline, "named pool holder did not enter")
+                time.sleep(0.01)
+            api(base, path + "/directory", expected=429)
+            api(base, path, "DELETE")
+            require(pool not in api(base, "sftp/pools")["names"], "closed pool stayed registered")
+            api(base, path, "POST")
+            require(holding.result()["directory"] == original_directory, "closing pool broke its active borrower")
+        require(api(base, path)["active"] == 0, "old borrower was returned to recreated pool")
+        require(api(base, path + "/directory")["directory"] == original_directory, "recreated pool unusable")
+        record("sftp-bounded-wait-and-inflight-pool-rebuild")
+    finally:
+        if renamed:
+            api(base, path + "/rename", "POST", query={"source": target, "target": filename})
+        if pool in api(base, "sftp/pools")["names"]:
+            api(base, path, "DELETE")
+        record("sftp-named-pool-cleanup")
 
 
 def test_idempotent(base, peer, record):

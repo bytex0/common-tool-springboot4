@@ -6,3 +6,5 @@ sftp-pool:
   password: ${TEST_SFTP_PASSWORD:}
   known-hosts: ${TEST_SFTP_KNOWN_HOSTS:}
   max-total: 2
+  min-idle: 0
+  eviction-interval: 0s

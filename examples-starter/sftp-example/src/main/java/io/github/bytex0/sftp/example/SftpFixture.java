@@ -23,6 +23,13 @@ import org.springframework.core.env.Environment;
 @Profile("sftp-fixture")
 public class SftpFixture {
 
+    /**
+     * 在独立进程中启动真实协议服务，只使用本次临时目录和随机密码。
+     *
+     * @param environment 测试环境
+     * @return 容器退出时关闭的 SSH 服务
+     * @throws Exception 服务启动或公钥文件写入失败
+     */
     @Bean(destroyMethod = "stop")
     SshServer fixtureServer(Environment environment) throws Exception {
         Path root = Path.of(environment.getRequiredProperty("TEST_SFTP_ROOT"));
@@ -45,7 +52,11 @@ public class SftpFixture {
             Files.writeString(root.resolve("port"), Integer.toString(server.getPort()));
             return server;
         } catch (Exception failure) {
-            server.stop(true);
+            try {
+                server.stop(true);
+            } catch (Exception cleanup) {
+                failure.addSuppressed(cleanup);
+            }
             throw failure;
         }
     }
