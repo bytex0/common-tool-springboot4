@@ -6,7 +6,7 @@
 
 本项目 Maven `groupId` 和 Java 根包名统一为 `io.github.bytex0`，源码目录对应 `io/github/bytex0`。
 
-当前完成**基础框架及 12 个 Starter**，其中 [第一批 10 个常用组件](docs/BATCH-01.md)已全部逐项验证。项目不是原仓库的完整二进制兼容替代版，MyBatis-Plus、消息队列等其他组件尚未迁入，详见 [迁移说明](docs/MIGRATION.md)。
+当前有 **18 个 Starter 库模块进入构建**，不代表已经完整迁移。复核发现原功能删减、API 兼容性和注释规范等问题，暂停新增模块，先按 [迁移审查与整改清单](docs/MIGRATION-AUDIT.md) 补齐。历史测试结果保留在批次记录中，不能作为原功能完整覆盖的证明。
 
 ## 技术基线
 

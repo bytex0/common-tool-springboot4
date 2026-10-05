@@ -323,6 +323,35 @@ def test_rate_limiter(base, peer, record):
     api(base, "rate/annotated", query={"key": key}, expected=429)
     api(base, "rate/acquire", query={"key": key, "permits": 0}, expected=400)
     record("rate-guava-annotation-and-validation")
+    for kind in ("REDIS_LUA_FIXED_WINDOW", "REDIS_LUA_SLIDING_WINDOW",
+                 "REDIS_LUA_TOKEN_BUCKET", "REDIS_LUA_LEAKY_BUCKET"):
+        key = "mixed-backend-" + uuid.uuid4().hex
+        policy = {"capacity": 30, "rate": 1, "max": 30, "window": 30}
+        statuses = [attempt(base, key, kind, backend="REDIS_TEMPLATE", permits=2, **policy),
+                    attempt(peer, key, kind, backend="REDISSON", permits=29, **policy),
+                    attempt(peer, key, kind, backend="REDIS_TEMPLATE", permits=28, **policy),
+                    attempt(base, key, kind, backend="REDISSON", permits=29, **policy)]
+        require(statuses == [200, 429, 200, 429], f"{kind}: backend quotas diverged")
+    record("rate-all-lua-backends-share-weighted-quota")
+    key = "spring-annotation-" + uuid.uuid4().hex
+    api(base, "rate/annotated-spring", query={"key": key})
+    api(peer, "rate/annotated", query={"key": key})
+    api(base, "rate/annotated-spring", query={"key": key}, expected=429)
+    time.sleep(2.1)
+    api(peer, "rate/annotated-spring", query={"key": key})
+    record("rate-spring-annotation-and-window-expiry")
+    for kind in ("REDIS_LUA_FIXED_WINDOW", "REDIS_LUA_SLIDING_WINDOW",
+                 "REDIS_LUA_TOKEN_BUCKET", "REDIS_LUA_LEAKY_BUCKET"):
+        key = "legacy-rate-" + uuid.uuid4().hex
+        policy = {"legacy": "true", "window": 30, "max": 2, "capacity": 30}
+        require(attempt(base, key, kind, backend="REDIS_TEMPLATE", **policy) == 200,
+                "legacy Spring script invocation failed")
+        require(attempt(peer, key, kind, backend="REDISSON", **policy) == 200,
+                "legacy Redisson script invocation failed")
+        if kind in ("REDIS_LUA_FIXED_WINDOW", "REDIS_LUA_SLIDING_WINDOW"):
+            require(attempt(base, key, kind, backend="REDIS_TEMPLATE", **policy) == 429,
+                    "legacy script did not share quota")
+    record("rate-original-lua-arguments-and-strategy-classes")
 
 
 def test_lock(base, peer, record):

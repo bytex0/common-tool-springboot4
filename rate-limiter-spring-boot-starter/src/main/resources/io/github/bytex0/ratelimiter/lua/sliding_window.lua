@@ -1,3 +1,8 @@
+-- The original client timestamp is deliberately replaced by Redis TIME.
+if #ARGV == 4 then
+    local seconds, limit, request = ARGV[1], ARGV[2], ARGV[4]
+    ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6] = tonumber(seconds) * 1000, limit, limit, 1, 1, request
+end
 local key = KEYS[1]
 local window = tonumber(ARGV[1])
 local limit = tonumber(ARGV[2])

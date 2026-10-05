@@ -1,3 +1,8 @@
+-- Accept the original (capacity, rate, client timestamp) arguments.
+if #ARGV == 3 then
+    local capacity, rate = ARGV[1], ARGV[2]
+    ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6] = 1000, capacity, capacity, rate, 1, ''
+end
 local key = KEYS[1]
 local capacity = tonumber(ARGV[3])
 local rate = tonumber(ARGV[4])

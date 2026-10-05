@@ -11,5 +11,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class RateLimiterExampleApplication {
-    public static void main(String[] args) { SpringApplication.run(RateLimiterExampleApplication.class, args); }
+
+    /**
+     * 启动限流真实接口示例。
+     *
+     * @param args 应用命令行参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(RateLimiterExampleApplication.class, args);
+    }
 }

@@ -1,19 +1,21 @@
 # 常用 Starter 第一批
 
-在已完成的基础 Starter、OSS 之外，选取以下 10 个常用组件。按表中顺序逐个审查、实现、补示例、真实 HTTP 自动化验证、提交；“选定”不表示已迁移。
+在基础 Starter、OSS 之外，选取以下 10 个常用组件。
+2026-10-05 复核发现此前“已完成并验证”的结论过宽：现有用例通过不代表原功能完整迁移。
+以 [迁移审查](MIGRATION-AUDIT.md) 为准，下面保留历史验证范围并更正验收状态。
 
 | 顺序 | Starter | 主要用途 | 状态 |
 | --- | --- | --- | --- |
-| 1 | `local-cache-spring-boot-starter` | Caffeine 本地缓存、加载与统计 | 已完成并验证 |
-| 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 已完成并验证 |
-| 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 已完成并验证 |
-| 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 已完成并验证 |
-| 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 已完成并验证 |
-| 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 已完成并验证 |
-| 7 | `multi-redis-spring-boot-starter` | 多 Redis 连接及序列化 | 已完成并验证 |
-| 8 | `lock-spring-boot-starter` | 本地锁及分布式锁 | 已完成并验证 |
-| 9 | `rate-limiter-spring-boot-starter` | 限流与流量控制 | 已完成并验证 |
-| 10 | `idempotent-spring-boot-starter` | 接口幂等与重复请求控制 | 已完成并验证 |
+| 1 | `local-cache-spring-boot-starter` | Caffeine 本地缓存、加载与统计 | 核心已测，API 对照及规范待整改 |
+| 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 现有用例已测，完整等价性待验收 |
+| 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 部分迁移，功能待补齐 |
+| 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 核心已测，重载及默认行为待对齐 |
+| 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 部分迁移，序列化接入及策略待补齐 |
+| 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 部分迁移，声明式能力及规范待整改 |
+| 7 | `multi-redis-spring-boot-starter` | 多 Redis 连接及序列化 | 部分迁移，工具层及路由待补齐 |
+| 8 | `lock-spring-boot-starter` | 本地锁及分布式锁 | 部分迁移，后端选择及规范待整改 |
+| 9 | `rate-limiter-spring-boot-starter` | 限流与流量控制 | 本轮已补齐并验证，部署差异见功能对照 |
+| 10 | `idempotent-spring-boot-starter` | 接口幂等与重复请求控制 | 核心已测，完整迁移路径待验收 |
 
 Redis 相关验证使用专用临时实例或明确指定的测试连接，不复用业务容器的数据。每个模块的状态只在其全部验证通过后改为完成。
 
@@ -61,10 +63,18 @@ Redis 相关验证使用专用临时实例或明确指定的测试连接，不�
 
 ## 限流
 
+2026-10-05 整改更新：恢复双 Redis 后端、策略工厂/接口/具体类、原规则模型及异常契约，
+兼容原 Lua 参数，移除本模块 synchronized，补齐注释并接入静态检查。
+全量 168 项 Java 测试和 12 项限流双实例 HTTP 检查通过。
+逐项证据及部署差异见 [限流功能对照](../rate-limiter-spring-boot-starter/MIGRATION.md)。
+下段为此前版本的历史记录，不再用于描述当前 RedisTemplate 支持范围。
+
 覆盖本地、Guava、Redisson及四种Lua策略，修复缺少默认LOCAL实现、静态无界状态、客户端时钟、TTL缺失及漏桶拒绝时丢失排水进度。支持加权许可、规则表达式和有界本地状态。全量123项Java测试、9项双实例真实检查通过。
 
 ## 幂等
 
 分离处理中锁和成功标记，修复业务失败仍占用去重窗口及长任务期间TTL到期导致重复执行。采用稳定参数JSON与SHA-256，服务层注解无需HTTP映射，明确跨存储事务和异步边界。全量130项Java测试、9项双实例真实检查通过。
 
-本批10个Starter均已完成逐项实现、示例、自动化和验证。最终整批复核：130项Java测试零失败，12个示例共87项真实HTTP及生命周期检查全部通过，源码/Javadoc打包通过，临时测试容器清理完成。源码接口的兼容变化见各模块README；此完成状态不代表原仓库其他组件已迁移。
+历史整批运行记录：130项Java测试零失败，12个示例共87项真实HTTP及生命周期检查通过，
+源码/Javadoc打包通过，临时测试容器清理完成。该记录只覆盖当时实现的功能，
+不证明原功能完整、注释完整或全面符合阿里规范；上述整改完成前不再标记整批迁移完成。

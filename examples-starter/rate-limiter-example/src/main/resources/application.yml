@@ -1,6 +1,9 @@
 spring:
   application:
     name: rate-limiter-example
+  data:
+    redis:
+      url: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
 server:
   address: 127.0.0.1
   port: ${SERVER_PORT:18090}
