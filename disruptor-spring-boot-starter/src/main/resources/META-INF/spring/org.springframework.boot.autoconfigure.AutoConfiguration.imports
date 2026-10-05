@@ -1,1 +1,2 @@
 io.github.bytex0.disruptor.DisruptorAutoConfiguration
+io.github.bytex0.disruptor.config.DisruptorAutoConfiguration

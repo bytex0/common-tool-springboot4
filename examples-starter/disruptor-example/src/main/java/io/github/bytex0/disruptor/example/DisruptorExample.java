@@ -25,12 +25,24 @@ import org.springframework.web.bind.annotation.RestController;
 @SpringBootApplication
 public class DisruptorExample {
 
+    /**
+     * 启动真实依赖队列 Starter 的示例。
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(DisruptorExample.class, args);
     }
 
+    /**
+     * 提供类型化业务处理器。
+     *
+     * @return 计数消费者
+     */
     @Bean
-    Counter handler() { return new Counter(); }
+    Counter handler() {
+        return new Counter();
+    }
 
     /**
      * 累加消费者，失败消息不更新状态。
@@ -40,12 +52,32 @@ public class DisruptorExample {
      */
     static class Counter implements MessageHandler<Long> {
 
+        /**
+         * 已成功处理的累计值。
+         */
         private final AtomicLong total = new AtomicLong();
 
-        public String name() { return "counter"; }
-        public Class<Long> type() { return Long.class; }
+        /**
+         * {@inheritDoc}
+         */
+        public String name() {
+            return "counter";
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        public Class<Long> type() {
+            return Long.class;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
         public void handle(Long value) {
-            if (value < 0) { throw new IllegalStateException("negative value"); }
+            if (value < 0) {
+                throw new IllegalStateException("negative value");
+            }
             total.addAndGet(value);
         }
     }
@@ -59,15 +91,35 @@ public class DisruptorExample {
     @RestController
     static class Controller {
 
+        /**
+         * 实际类型化模板。
+         */
         private final DisruptorTemplate template;
 
+        /**
+         * 业务计数器。
+         */
         private final Counter counter;
 
+        /**
+         * 注入实际队列与处理器。
+         *
+         * @param template 模板
+         * @param counter 计数器
+         */
         Controller(DisruptorTemplate template, Counter counter) {
             this.template = template;
             this.counter = counter;
         }
 
+        /**
+         * 等待指定队列实际消费后返回。
+         *
+         * @param queue 队列名称
+         * @param value 业务值
+         * @return 累计值
+         * @throws Exception 消费失败或等待超时
+         */
         @PostMapping("/api/disruptor/send")
         Map<String, Object> send(@RequestParam(defaultValue = "counter") String queue,
                                  @RequestParam long value) throws Exception {
@@ -75,12 +127,26 @@ public class DisruptorExample {
             return Map.of("code", 0, "data", Map.of("total", counter.total.get()));
         }
 
+        /**
+         * 参数错误返回 400。
+         *
+         * @return 错误码
+         */
         @ExceptionHandler(IllegalArgumentException.class)
         @ResponseStatus(HttpStatus.BAD_REQUEST)
-        Map<String, Integer> invalid() { return Map.of("code", 400); }
+        Map<String, Integer> invalid() {
+            return Map.of("code", 400);
+        }
 
+        /**
+         * 消费失败返回 409。
+         *
+         * @return 错误码
+         */
         @ExceptionHandler(ExecutionException.class)
         @ResponseStatus(HttpStatus.CONFLICT)
-        Map<String, Integer> failed() { return Map.of("code", 409); }
+        Map<String, Integer> failed() {
+            return Map.of("code", 409);
+        }
     }
 }

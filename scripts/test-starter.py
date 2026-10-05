@@ -162,6 +162,74 @@ def test_disruptor(base, record):
     record("disruptor-multiple-producers")
     api(base, "disruptor/send", "POST", query={"queue": "missing", "value": 1}, expected=400)
     record("disruptor-invalid-queue")
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda _: api(base, "disruptor/listener", "POST", query={"value": 1}), range(16)))
+    listeners = api(base, "disruptor/listeners")
+    require(listeners["processed"] == listeners["total"] == 16, "annotation broadcast or lost messages")
+    require(listeners["maxActive"] == 2 and listeners["virtualThreads"] == [False], "annotation worker settings ignored")
+    virtual = api(base, "disruptor/listener", "POST", query={"queue": "virtual", "value": 2})
+    require(virtual["virtualMode"] and virtual["virtualTotal"] == 2, "virtual-thread listener did not run")
+    api(base, "disruptor/listener", "POST", query={"value": -1}, expected=409)
+    require(api(base, "disruptor/listeners")["processed"] == 16, "failed listener changed business state")
+    record("disruptor-annotation-workers-and-virtual-mode")
+
+    for strategy in ("BLOCKING", "YIELDING", "BUSY_SPIN", "SLEEPING", "TIMEOUT_BLOCKING", "LITE_BLOCKING", "PHASED_BACKOFF"):
+        name = "dynamic-" + uuid.uuid4().hex
+        path = "disruptor/queues/" + name
+        try:
+            result = api(base, path, "POST", query={"size": 8, "producer": "SINGLE", "wait": strategy,
+                                                  "virtual": "false" if strategy == "BUSY_SPIN" else "true"})
+            require(result["capacity"] == result["metricCapacity"] == 8 and result["metricPresent"], "dynamic metrics missing")
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                list(pool.map(lambda value: api(base, path + "/send", "POST", query={"value": value}), range(1, 5)))
+            require(api(base, path)["consumed"] == 4, f"{strategy}: consumer did not process once per message")
+            api(base, path, "POST", expected=400)
+        finally:
+            api(base, path, "DELETE")
+            require(not api(base, "disruptor/metrics", query={"name": name})["present"], "closed queue leaked meter")
+    record("disruptor-all-wait-strategies-and-single-producer")
+
+    name = "dynamic-" + uuid.uuid4().hex
+    path = "disruptor/queues/" + name
+    try:
+        api(base, path, "POST", query={"size": 2, "delay": 600})
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            calls = [pool.submit(api, base, path + "/send", "POST", query={"value": 1}) for _ in range(2)]
+            deadline = time.monotonic() + 5
+            while api(base, path)["published"] < 2:
+                require(time.monotonic() < deadline, "queue did not receive pending messages")
+                time.sleep(0.01)
+            api(base, path + "/send", "POST", query={"value": 1}, expected=429)
+            for call in calls:
+                call.result()
+        api(base, path + "/send", "POST", query={"value": 1, "legacy": "true"})
+        deadline = time.monotonic() + 5
+        while api(base, path)["consumed"] < 3:
+            require(time.monotonic() < deadline, "legacy void sender did not reach consumer")
+            time.sleep(0.02)
+        api(base, path, "DELETE")
+        rebuilt = api(base, path, "POST", query={"size": 16})
+        require(rebuilt["metricCapacity"] == 16 and rebuilt["consumed"] == 0, "recreated queue retained old metric/state")
+        api(base, path + "/send", "POST", query={"value": 2})
+    finally:
+        api(base, path, "DELETE")
+    record("disruptor-backpressure-legacy-send-and-metric-rebuild")
+
+    name = "dynamic-" + uuid.uuid4().hex
+    path = "disruptor/queues/" + name
+    try:
+        require(not api(base, path + "/raw", "POST")["managed"], "raw queue registration was replaced")
+        api(base, path + "/send", "POST", query={"value": 7, "legacy": "true"})
+        deadline = time.monotonic() + 5
+        while api(base, path)["rawProcessed"] < 1:
+            require(time.monotonic() < deadline, "raw registered queue did not consume")
+            time.sleep(0.01)
+        api(base, path + "/send", "POST", query={"value": 1}, expected=400)
+    finally:
+        api(base, path, "DELETE")
+    record("disruptor-raw-registration-without-false-acknowledgement")
+    api(base, "disruptor/queues/dynamic-invalid", "POST", query={"size": 3}, expected=400)
+    record("disruptor-invalid-dynamic-configuration")
 
 
 def test_script(base, record):

@@ -26,13 +26,39 @@ class DisruptorTest {
      *
      * @author bytex0
      * @since 2026-10-05 19:39:53
+     * @param action 消费动作
      */
-    private record Handler(Consumer<String> action) implements MessageHandler<String> {
-        public String name() { return "test"; }
-        public Class<String> type() { return String.class; }
-        public void handle(String message) { action.accept(message); }
+    private record Handler(
+            /**
+             * 同步消费动作。
+             */
+            Consumer<String> action) implements MessageHandler<String> {
+
+        /**
+         * {@inheritDoc}
+         */
+        public String name() {
+            return "test";
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        public Class<String> type() {
+            return String.class;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        public void handle(String message) {
+            action.accept(message);
+        }
     }
 
+    /**
+     * 自动装配、关闭、用户覆盖与非法容量检查。
+     */
     @Test
     void autoConfigurationSupportsDisableAndOverride() {
         ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -46,11 +72,18 @@ class DisruptorTest {
         runner.withPropertyValues("disruptor.buffer-size=3").run(context -> assertThat(context).hasFailed());
     }
 
+    /**
+     * 消费确认保留业务异常，后续消息仍能消费。
+     *
+     * @throws Exception 等待确认失败
+     */
     @Test
     void confirmsConsumptionAndRecoversAfterHandlerFailure() throws Exception {
         List<String> messages = new CopyOnWriteArrayList<>();
         Handler handler = new Handler(message -> {
-            if (message.equals("fail")) { throw new IllegalStateException("business failure"); }
+            if (message.equals("fail")) {
+                throw new IllegalStateException("business failure");
+            }
             messages.add(message);
         });
         try (DisruptorTemplate template = new DisruptorTemplate(List.of(handler), 4)) {
@@ -64,13 +97,22 @@ class DisruptorTest {
         }
     }
 
+    /**
+     * 重复定义、满队列和停机后的消息明确拒绝。
+     *
+     * @throws Exception 线程协调失败
+     */
     @Test
     void rejectsDuplicatesFullQueueAndSendsAfterShutdown() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         Handler handler = new Handler(message -> {
             entered.countDown();
-            try { release.await(); } catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+            try {
+                release.await();
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
         });
         assertThatIllegalArgumentException().isThrownBy(() -> new DisruptorTemplate(List.of(handler, handler), 2));
         DisruptorTemplate template = new DisruptorTemplate(List.of(handler), 2);
