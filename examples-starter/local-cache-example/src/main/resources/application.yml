@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: local-cache-example
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18082}
+local-cache:
+  enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

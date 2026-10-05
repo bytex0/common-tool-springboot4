@@ -1,0 +1,32 @@
+# 常用 Starter 第一批
+
+在已完成的基础 Starter、OSS 之外，选取以下 10 个常用组件。按表中顺序逐个审查、实现、补示例、真实 HTTP 自动化验证、提交；“选定”不表示已迁移。
+
+| 顺序 | Starter | 主要用途 | 状态 |
+| --- | --- | --- | --- |
+| 1 | `local-cache-spring-boot-starter` | Caffeine 本地缓存、加载与统计 | 已完成并验证 |
+| 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 待审查 |
+| 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 待审查 |
+| 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 待审查 |
+| 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 待审查 |
+| 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 待审查 |
+| 7 | `multi-redis-spring-boot-starter` | 多 Redis 连接及序列化 | 待审查 |
+| 8 | `lock-spring-boot-starter` | 本地锁及分布式锁 | 待审查 |
+| 9 | `rate-limiter-spring-boot-starter` | 限流与流量控制 | 待审查 |
+| 10 | `idempotent-spring-boot-starter` | 接口幂等与重复请求控制 | 待审查 |
+
+Redis 相关验证使用专用临时实例或明确指定的测试连接，不复用业务容器的数据。每个模块的状态只在其全部验证通过后改为完成。
+
+## 本地缓存审查
+
+原模块的实际实现存在以下问题，本次迁移同时修正：
+
+- 父类字段初始化阶段调用可重写方法创建缓存，子类构造参数和字段尚未就绪。
+- 工厂使用静态应用上下文和静态缓存容器，不同 Spring 上下文互相影响，退出后保留引用。
+- `BeanFactoryPostProcessor` 中提前实例化缓存 Bean，可能早于依赖注入及其他 Bean 后处理阶段。
+- Caffeine 未调用 `recordStats()`，却暴露命中率等统计，结果不反映真实使用情况。
+- 对外暴露可变缓存注册表，以类名识别实例时同类型或同名类可能覆盖。
+
+验证重点：构造参数初始化顺序、一次性并发加载、访问过期、容量限制、加载失败与空值、统计、多上下文隔离、用户工厂覆盖和关闭配置。
+
+结果：上述问题已修正，缓存单元测试 14 项、示例接口测试 4 项通过；全量 68 项 Java 测试、本地缓存 8 项、基础示例 3 项、OSS 15 项真实 HTTP 检查通过。对应运行与兼容性说明见 [本地缓存文档](../local-cache-spring-boot-starter/README.md)。

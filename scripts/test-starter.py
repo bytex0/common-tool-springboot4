@@ -20,7 +20,11 @@ import xml.etree.ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULES = {"common": "common-tool-example", "oss": "oss-upload-examples"}
+MODULES = {
+    "common": "common-tool-example",
+    "oss": "oss-upload-examples",
+    "local-cache": "local-cache-example",
+}
 OPENER = build_opener(ProxyHandler({}))
 
 
@@ -79,6 +83,40 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_local_cache(base, record):
+    key = "cache-" + uuid.uuid4().hex
+    try:
+        require(not api(base, "cache/entry", query={"key": key})["present"], "cache initially contains key")
+        api(base, "cache/entry", "PUT", query={"key": key, "value": "中文 value"})
+        require(api(base, "cache/entry", query={"key": key})["value"] == "中文 value", "cache value mismatch")
+        api(base, "cache/entry", "DELETE", query={"key": key})
+        require(not api(base, "cache/entry", query={"key": key})["present"], "cache delete failed")
+        record("cache-crud")
+
+        first = api(base, "cache/load", query={"key": key, "value": "first"})
+        second = api(base, "cache/load", query={"key": key, "value": "second"})
+        require(first["value"] == second["value"] == "first", "loader replaced an existing cached value")
+        require(first["loadCount"] == second["loadCount"], "loader ran for a cache hit")
+        record("cache-load-once")
+
+        stats = api(base, "cache/stats")["demoCache"]
+        require(stats["hitCount"] >= 2 and stats["missCount"] >= 2, "cache statistics were not recorded")
+        require(stats["loadSuccessCount"] == 1, "incorrect successful load count")
+        record("cache-real-statistics")
+
+        api(base, "cache/entry", "PUT", query={"key": "expiry", "value": "short-lived"})
+        time.sleep(2.3)
+        require(not api(base, "cache/entry", query={"key": "expiry"})["present"], "cache access expiry failed")
+        record("cache-expiration")
+
+        api(base, "cache/entry", query={"key": " "}, expected=400)
+        record("cache-invalid-key")
+    finally:
+        api(base, "cache/all", "DELETE")
+        require(api(base, "cache/stats")["demoCache"]["size"] == 0, "cache cleanup left entries")
+        record("cache-cleanup")
 
 
 def test_oss(base, bucket, record):
@@ -289,6 +327,8 @@ def main():
                     record("application-health")
                     if args.starter == "common":
                         test_common(base, record)
+                    elif args.starter == "local-cache":
+                        test_local_cache(base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:

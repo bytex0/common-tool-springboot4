@@ -12,7 +12,7 @@
 
     <name>common-tool-springboot4-bom</name>
     <description>Common Tool Spring Boot 4.x 组件版本管理</description>
-    <url>https://github.com/archer099/common-tool-springboot4</url>
+    <url>https://github.com/bytex0/common-tool-springboot4</url>
 
     <properties>
         <common-tool.version>4.0.0-SNAPSHOT</common-tool.version>
@@ -20,6 +20,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.github.bytex0</groupId>
+                <artifactId>local-cache-spring-boot-starter</artifactId>
+                <version>${common-tool.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.github.bytex0</groupId>
                 <artifactId>oss-spring-boot-starter</artifactId>
@@ -49,8 +54,8 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/archer099/common-tool-springboot4.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/archer099/common-tool-springboot4.git</developerConnection>
-        <url>https://github.com/archer099/common-tool-springboot4</url>
+        <connection>scm:git:https://github.com/bytex0/common-tool-springboot4.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/bytex0/common-tool-springboot4.git</developerConnection>
+        <url>https://github.com/bytex0/common-tool-springboot4</url>
     </scm>
 </project>

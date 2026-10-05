@@ -18,12 +18,13 @@
 
     <name>common-tool-springboot4</name>
     <description>面向 Spring Boot 4.x 的通用工具与独立 Starter 组件</description>
-    <url>https://github.com/archer099/common-tool-springboot4</url>
+    <url>https://github.com/bytex0/common-tool-springboot4</url>
 
     <modules>
         <module>common-tool-springboot4-bom</module>
         <module>common-tool-spring-boot-starter</module>
         <module>oss-spring-boot-starter</module>
+        <module>local-cache-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
 
@@ -71,9 +72,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/archer099/common-tool-springboot4.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/archer099/common-tool-springboot4.git</developerConnection>
-        <url>https://github.com/archer099/common-tool-springboot4</url>
+        <connection>scm:git:https://github.com/bytex0/common-tool-springboot4.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/bytex0/common-tool-springboot4.git</developerConnection>
+        <url>https://github.com/bytex0/common-tool-springboot4</url>
     </scm>
 
     <build>

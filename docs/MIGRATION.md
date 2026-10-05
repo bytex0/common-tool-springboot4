@@ -21,6 +21,7 @@
 | 基础 Starter | 已建立，含 `CommonToolConfiguration`、配置开关、启动日志及 `ApiResponse` |
 | 坐标与命名空间 | Maven groupId、Java 根包与源码目录统一为 `io.github.bytex0` |
 | OSS Starter | 已迁入 AWS SDK v2，配套真实 Starter 示例、接口测试与自动化脚本 |
+| 本地缓存 Starter | 已迁入并修正初始化时机、上下文隔离、统计与缓存命名，配套示例和自动化 |
 | 自动配置发现 | 改为 `@AutoConfiguration` + imports，不扫描业务包 |
 | 可运行示例 | 已建立，Web MVC + Actuator，无外部中间件依赖 |
 | 测试与 CI | 自动配置、响应兼容、应用日志和真实 HTTP 集成测试 |
@@ -42,13 +43,24 @@ OSS 迁移时重新读取的源模块已是 `io.github.archer099:common-tool:2.5
 
 使用说明和 SDK v1/v2 类型差异详见 [OSS README](../oss-spring-boot-starter/README.md)。
 
+## 本地缓存迁移与验证
+
+- 使用 Boot 管理的 Caffeine 版本，移除未使用的 Hutool 和 Lombok 依赖。
+- 保留抽象缓存类型及 get/put/remove/clear 方法，缓存不在父类构造阶段创建；Spring 工厂在单例完成初始化后注册并校验配置。
+- 工厂不再使用静态方法、静态 Map 或静态 ApplicationContext，改为按上下文注入实例；退出时清空条目和注册表。
+- 注册表以 Bean 名称为键，支持同类型多实例，按类型查询有歧义时明确报错。注册表和统计快照不可修改。
+- 开启真实 Caffeine 统计，支持可控时钟验证过期行为；空值或失败加载不缓存，并发同键使用 Caffeine 原子加载。
+- 2026-10-05：全量 68 项 Java 测试通过，缓存示例 8 项真实 HTTP 检查通过，基础示例 3 项和 OSS 15 项回归通过。测试进程和资源均已清理。
+
+兼容性变化和接入方式详见 [本地缓存 README](../local-cache-spring-boot-starter/README.md)。本轮已选 10 个常用模块，逐个审查和验证，进度以 [第一批清单](BATCH-01.md) 为准。
+
 ## 后续迁移分组
 
 下表均为**待迁移**，只是推荐顺序，不代表已验证兼容：
 
 | 批次 | 原模块 | 主要检查点 |
 | --- | --- | --- |
-| 1：轻依赖能力 | `local-cache`、`design-pattern`、`disruptor`、`i18n`、`ip2region`、`sensitive-word` | Spring 7 接口、切面 Starter、资源与依赖边界 |
+| 1：轻依赖能力 | `design-pattern`、`disruptor`、`i18n`、`ip2region`、`sensitive-word` | Spring 7 接口、切面 Starter、资源与依赖边界 |
 | 2：JSON 与 Web | `dict`、`desensitize`、`crypto`、`signature`、`docs` | Jackson 3 扩展 API、MVC 自动配置新包名、Springdoc/Knife4j Boot 4 支持 |
 | 3：Redis 与并发控制 | `multi-redis`、`multi-redisson`、`lock`、`rate-limiter`、`idempotent` | Spring Data Redis 4、Redisson 适配、序列化及连接隔离 |
 | 4：数据库与消息 | `mybatis-plus-spring3`、`local-message`、`dynamic-mq`、`mqtt`、`netty` | Boot 4 专用集成、动态数据源/事务兼容、消息连接生命周期 |

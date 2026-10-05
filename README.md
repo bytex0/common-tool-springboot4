@@ -4,7 +4,7 @@
 
 本项目 Maven `groupId` 和 Java 根包名统一为 `io.github.bytex0`，源码目录对应 `io/github/bytex0`。
 
-当前完成**项目框架、基础 Starter 和 OSS Starter**，不是原项目全部组件的完成迁移版。Redis、MyBatis-Plus、消息队列等组件尚未迁入，详见 [迁移说明](docs/MIGRATION.md)。
+当前完成**项目框架、基础 Starter、OSS 和本地缓存 Starter**，不是原项目全部组件的完成迁移版。Redis、MyBatis-Plus、消息队列等组件尚未迁入，详见 [迁移说明](docs/MIGRATION.md)。后续已选定的 10 个常用组件及进度见 [第一批清单](docs/BATCH-01.md)。
 
 ## 技术基线
 
@@ -26,9 +26,11 @@ common-tool-springboot4/
 ├── common-tool-springboot4-bom/          # 仅管理本项目组件版本，不覆盖使用方 Boot 版本
 ├── common-tool-spring-boot-starter/      # 基础自动配置、启动日志、ApiResponse
 ├── oss-spring-boot-starter/              # AWS SDK v2：上传下载、分片、签名和元数据
+├── local-cache-spring-boot-starter/      # Caffeine：延迟初始化、隔离工厂、加载及统计
 ├── examples-starter/                    # 示例聚合工程，不发布到远程仓库
 │   ├── common-tool-example/             # 可独立运行的 Web MVC + Actuator 示例
-│   └── oss-upload-examples/             # 真实集成 OSS Starter 的测试接口
+│   ├── oss-upload-examples/             # 真实集成 OSS Starter 的测试接口
+│   └── local-cache-example/             # 本地缓存 CRUD、加载、过期及统计接口
 ├── scripts/test-starter.py              # 构建、启动、真实 HTTP 验证、清理和报告
 ├── docs/
 │   ├── MIGRATION.md                     # 原项目分析与分批迁移清单
@@ -115,6 +117,9 @@ common-tool:
 # 自动构建工程、启动基础示例并测试接口
 python3 scripts/test-starter.py common
 
+# 本地缓存，无需外部中间件
+python3 scripts/test-starter.py local-cache
+
 # OSS_ACCESS_KEY、OSS_ACCESS_SECRET 由环境提前注入
 # 默认连接 http://127.0.0.1:19000，可通过 OSS_ENDPOINT 修改
 python3 scripts/test-starter.py oss
@@ -123,6 +128,8 @@ python3 scripts/test-starter.py oss
 脚本使用 Python 3.10+ 标准库，无需安装第三方包；使用随机端口、随机测试桶，并自动清理。只有刚刚验证并打包了当前代码时才使用 `--skip-build`。结果写入对应示例的 `target/api-test-report.json`，失败返回非零退出码。
 
 OSS 接入方式见 [组件文档](oss-spring-boot-starter/README.md)，接口列表见 [示例文档](examples-starter/oss-upload-examples/README.md)。
+
+本地缓存接入与兼容变化见 [组件文档](local-cache-spring-boot-starter/README.md)，接口及自动化说明见 [示例文档](examples-starter/local-cache-example/README.md)。
 
 新增模块请参考 [开发约定](docs/DEVELOPMENT.md)。
 
