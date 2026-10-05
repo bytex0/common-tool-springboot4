@@ -8,7 +8,7 @@
 | 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 已完成并验证 |
 | 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 已完成并验证 |
 | 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 已完成并验证 |
-| 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 待审查 |
+| 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 已完成并验证 |
 | 6 | `dict-spring-boot-starter` | 字典缓存与显示文本 | 待审查 |
 | 7 | `multi-redis-spring-boot-starter` | 多 Redis 连接及序列化 | 待审查 |
 | 8 | `lock-spring-boot-starter` | 本地锁及分布式锁 | 待审查 |
@@ -42,3 +42,7 @@ Redis 相关验证使用专用临时实例或明确指定的测试连接，不�
 ## 国际化
 
 修复资源HashMap并发访问、未关闭流、cacheSeconds未生效、语言头解析、默认文本语义及刷新删除内存数据。采用标准消息源、不可变内存快照、独立有界资源缓存和标准语言协商。全量90项Java测试、5项真实HTTP检查通过。
+
+## 脱敏
+
+采用Jackson 3属性级独立序列化器，补齐遗漏类型的保守策略，修复短输入原文返回、Unicode索引、末尾漏遮蔽及自定义处理器绕过依赖注入。移除静态映射器和吞异常行为。全量97项Java测试、5项真实HTTP检查通过。

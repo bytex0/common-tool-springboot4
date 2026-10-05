@@ -22,6 +22,7 @@
         <module>docs-example</module>
         <module>excel-example</module>
         <module>i18n-example</module>
+        <module>desensitize-example</module>
     </modules>
 
     <properties>

@@ -30,6 +30,7 @@ MODULES = {
     "docs": "docs-example",
     "excel": "excel-example",
     "i18n": "i18n-example",
+    "desensitize": "desensitize-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -89,6 +90,19 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_desensitize(base, record):
+    profile = api(base, "desensitize/profile")
+    require(profile["phone"] == "138****8000" and profile["name"] == "张*", "built-in masking failed")
+    require(profile["email"] == "a****@example.com", "email masking failed")
+    require(profile["ordinary"] == "public", "unannotated property was changed")
+    record("desensitize-field-isolation")
+    require(profile["range"] == "A####" and profile["custom"] == "managed", "range or managed handler failed")
+    record("desensitize-range-and-custom-handler")
+    nested = api(base, "desensitize/list")
+    require(len(nested) == 2 and all(item == profile for item in nested), "nested collection masking failed")
+    record("desensitize-nested-output")
 
 
 def test_i18n(base, record):
@@ -413,6 +427,8 @@ def main():
                         test_excel(base, record)
                     elif args.starter == "i18n":
                         test_i18n(base, record)
+                    elif args.starter == "desensitize":
+                        test_desensitize(base, record)
                     else:
                         test_oss(base, bucket, record)
                 finally:
