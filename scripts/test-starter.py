@@ -543,6 +543,8 @@ def test_i18n(base, record):
     headers = {"Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8"}
     require(api(base, "i18n/message", query={"name": "Lin"}, headers=headers)["message"] == "Hello, Lin",
             "weighted Accept-Language resolution failed")
+    require(api(base, "i18n/message", query={"name": "Lin"}, headers={"Accept-Language": "zh_CN"})["message"]
+            == "你好，Lin", "original underscore language header failed")
     record("i18n-locale-negotiation")
     api(base, "i18n/message", "PUT", query={"language": "en_US", "code": "dynamic", "text": "Updated {0}"})
     require(api(base, "i18n/message", query={"code": "dynamic", "name": "Lin"}, headers=headers)["message"] == "Updated Lin",
@@ -555,6 +557,22 @@ def test_i18n(base, record):
     require(api(base, "i18n/message", query={"code": "dynamic"}, headers=headers)["message"] == "dynamic", "code fallback failed")
     api(base, "i18n/message", "PUT", query={"language": "en;bad", "code": "x", "text": "y"}, expected=400)
     record("i18n-removal-and-validation")
+    require(api(base, "i18n/default", query={"code": "missing", "language": "en_US", "name": "Lin",
+                                           "fallback": "Fallback {0}"})["message"] == "Fallback Lin",
+            "original default-message overload failed")
+    require(api(base, "i18n/default", query={"code": "hello", "language": "", "name": "Lin"},
+                headers=headers)["message"] == "Hello, Lin", "blank language lost request locale")
+    record("i18n-original-overloads-and-blank-locale")
+    api(base, "i18n/message", "PUT", query={"language": "", "code": "root-test", "text": "Root value"})
+    require(api(base, "i18n/message", query={"code": "root-test"}, headers=headers)["message"] == "Root value",
+            "ROOT memory locale failed")
+    api(base, "i18n/messages", "DELETE", query={"language": ""})
+    require(api(base, "i18n/message", query={"code": "root-test"}, headers=headers)["message"] == "root-test",
+            "language clear failed")
+    api(base, "i18n/messages", "DELETE")
+    require(api(base, "i18n/message", query={"code": "hello"}, headers=headers)["message"] == "hello",
+            "explicit global clear failed")
+    record("i18n-explicit-language-and-global-clear")
 
 
 def test_excel(base, record):

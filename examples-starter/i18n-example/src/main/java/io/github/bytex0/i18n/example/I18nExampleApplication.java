@@ -14,8 +14,22 @@ import org.springframework.context.annotation.Bean;
  */
 @SpringBootApplication
 public class I18nExampleApplication {
-    public static void main(String[] args) { SpringApplication.run(I18nExampleApplication.class, args); }
 
+    /**
+     * 启动示例。
+     *
+     * @param args 应用参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(I18nExampleApplication.class, args);
+    }
+
+    /**
+     * 启动完成时写入独立测试消息。
+     *
+     * @param manager 当前应用管理器
+     * @return 消息初始化任务
+     */
     @Bean
     ApplicationRunner messages(I18nManager manager) {
         return args -> {
