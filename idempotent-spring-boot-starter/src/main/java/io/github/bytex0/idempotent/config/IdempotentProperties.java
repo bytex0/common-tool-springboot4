@@ -1,7 +1,6 @@
 package io.github.bytex0.idempotent.config;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -12,23 +11,36 @@ import java.time.Duration;
  * @author bytex0
  * @since 2026-10-05 17:09:18
  */
-@Getter
-@Setter
+@Data
 @ConfigurationProperties("idempotent")
 public class IdempotentProperties {
 
     /**
-     * 是否启用
+     * 是否自动装配幂等能力，默认 true。
      */
-    private boolean enabled = true;
+    private Boolean enabled = true;
 
     /**
-     * 业务命名空间，建议包含应用和租户维度
+     * 默认业务命名空间，默认 idempotent:，建议包含应用和租户维度。
      */
     private String keyPrefix = "idempotent:";
 
     /**
-     * 成功后去重时长，保留原配置名称
+     * 默认去重时长，默认 10 秒；显式过期参数不大于零时使用，必须至少 1 毫秒。
      */
     private Duration defaultExpireSeconds = Duration.ofSeconds(10);
+
+    /**
+     * 是否记录 DEBUG 级别的操作阶段和时长，默认 false，不记录业务键或参数。
+     */
+    private Boolean debugLog = false;
+
+    /**
+     * 保留便捷判断方法，不破坏原 Boolean JavaBean getter/setter。
+     *
+     * @return 非空启用状态
+     */
+    public Boolean isEnabled() {
+        return Boolean.TRUE.equals(enabled);
+    }
 }

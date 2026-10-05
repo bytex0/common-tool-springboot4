@@ -11,5 +11,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class IdempotentExampleApplication {
-    public static void main(String[] args) { SpringApplication.run(IdempotentExampleApplication.class, args); }
+
+    /**
+     * 启动真实集成 Starter 的测试应用。
+     *
+     * @param args Spring Boot 启动参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(IdempotentExampleApplication.class, args);
+    }
 }

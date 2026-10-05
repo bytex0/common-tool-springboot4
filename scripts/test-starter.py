@@ -294,6 +294,19 @@ def test_idempotent(base, peer, record):
     record("idempotent-processing-lock-and-success-window")
     api(base, "idempotent/run", "POST", query={"key": ""}, expected=400)
     record("idempotent-key-validation")
+    api(base, "idempotent/run", "POST", query={"key": key + "-invalid-delay", "delay": -1}, expected=400)
+    api(base, "idempotent/reserve", "POST", query={"key": ""}, expected=400)
+    record("idempotent-reservation-and-delay-validation")
+
+    reserved = key + "-reserved"
+    require(api(base, "idempotent/reserve", "POST", query={"key": reserved})["reserved"], "reservation failed")
+    api(peer, "idempotent/reserve", "POST", query={"key": reserved}, expected=409)
+    api(peer, "idempotent/run", "POST", query={"key": reserved}, expected=409)
+    require(api(peer, "idempotent/state", query={"key": reserved})["count"] == 0, "reservation executed business")
+    time.sleep(1.15)
+    require(api(peer, "idempotent/run", "POST", query={"key": reserved})["count"] == 1, "reservation never expired")
+    api(base, "idempotent/reserve", "POST", query={"key": reserved}, expected=409)
+    record("idempotent-standalone-scoped-coordination-and-expiry")
 
 
 def test_rate_limiter(base, peer, record):
