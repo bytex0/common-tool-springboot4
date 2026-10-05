@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: docs-example
+server:
+  address: 127.0.0.1
+  port: ${SERVER_PORT:18083}
+swagger:
+  title: Common Tool Docs
+  description: Spring Boot 4 API
+  version: 4.0.0
+  basic-auth: true
+  username: ${DOCS_USERNAME:}
+  password: ${DOCS_PASSWORD:}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

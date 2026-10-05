@@ -2,6 +2,7 @@
 """Build an example, exercise its real HTTP API, and clean up test resources."""
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -24,6 +25,7 @@ MODULES = {
     "common": "common-tool-example",
     "oss": "oss-upload-examples",
     "local-cache": "local-cache-example",
+    "docs": "docs-example",
 }
 OPENER = build_opener(ProxyHandler({}))
 
@@ -83,6 +85,29 @@ def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
     record("common-response")
+
+
+def test_docs(base, record, environment):
+    for path in ("/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui/index.html"):
+        status, _ = request(base + path)
+        require(status == 401, "documentation is accessible without credentials")
+    status, _ = request(base + "/v3/api-docs", headers={"Authorization": "Basic invalid"})
+    require(status == 401, "malformed credentials were accepted")
+    record("docs-access-protection")
+    credentials = base64.b64encode(
+        (environment["DOCS_USERNAME"] + ":" + environment["DOCS_PASSWORD"]).encode()).decode()
+    headers = {"Authorization": "Basic " + credentials}
+    status, body = request(base + "/v3/api-docs", headers=headers)
+    require(status == 200, "authorized documentation request failed")
+    document = json.loads(body)
+    require(document["info"]["title"] == "Common Tool Docs", "OpenAPI title mismatch")
+    require("/api/docs/ping" in document["paths"], "OpenAPI omitted example controller")
+    record("docs-openapi-generation")
+    status, body = request(base + "/swagger-ui/index.html", headers=headers)
+    require(status == 200 and b"swagger-ui" in body.lower(), "Swagger UI assets unavailable")
+    record("docs-ui")
+    require(api(base, "docs/ping")["status"] == "UP", "documentation guard blocked business endpoint")
+    record("docs-business-isolation")
 
 
 def test_local_cache(base, record):
@@ -314,6 +339,9 @@ def main():
         environment = os.environ.copy()
         bucket = "common-tool-it-" + uuid.uuid4().hex
         environment["OSS_BUCKET"] = bucket
+        if args.starter == "docs":
+            environment["DOCS_USERNAME"] = "test-" + uuid.uuid4().hex
+            environment["DOCS_PASSWORD"] = uuid.uuid4().hex
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
             log_path = Path(temporary) / "application.log"
             with log_path.open("w") as log:
@@ -329,6 +357,8 @@ def main():
                         test_common(base, record)
                     elif args.starter == "local-cache":
                         test_local_cache(base, record)
+                    elif args.starter == "docs":
+                        test_docs(base, record, environment)
                     else:
                         test_oss(base, bucket, record)
                 finally:

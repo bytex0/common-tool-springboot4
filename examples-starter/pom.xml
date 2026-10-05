@@ -19,6 +19,7 @@
         <module>common-tool-example</module>
         <module>oss-upload-examples</module>
         <module>local-cache-example</module>
+        <module>docs-example</module>
     </modules>
 
     <properties>

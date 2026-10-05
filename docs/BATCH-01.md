@@ -5,7 +5,7 @@
 | 顺序 | Starter | 主要用途 | 状态 |
 | --- | --- | --- | --- |
 | 1 | `local-cache-spring-boot-starter` | Caffeine 本地缓存、加载与统计 | 已完成并验证 |
-| 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 待审查 |
+| 2 | `docs-spring-boot-starter` | OpenAPI 与接口文档 | 已完成并验证 |
 | 3 | `excel-spring-boot-starter` | Excel 导入导出及大文件处理 | 待审查 |
 | 4 | `i18n-spring-boot-starter` | 国际化与消息资源 | 待审查 |
 | 5 | `desensitize-spring-boot-starter` | 敏感字段脱敏 | 待审查 |
@@ -30,3 +30,7 @@ Redis 相关验证使用专用临时实例或明确指定的测试连接，不�
 验证重点：构造参数初始化顺序、一次性并发加载、访问过期、容量限制、加载失败与空值、统计、多上下文隔离、用户工厂覆盖和关闭配置。
 
 结果：上述问题已修正，缓存单元测试 14 项、示例接口测试 4 项通过；全量 68 项 Java 测试、本地缓存 8 项、基础示例 3 项、OSS 15 项真实 HTTP 检查通过。对应运行与兼容性说明见 [本地缓存文档](../local-cache-spring-boot-starter/README.md)。
+
+## 接口文档
+
+改用 Boot 4 对应的 Springdoc 3；修复原 Basic 认证仅声明 scheme 而不限制访问的问题，取消默认凭据，保护 JSON/YAML/UI 路径，关闭开关返回 404，不干预业务认证。用户 OpenAPI Bean 可覆盖。全量 75 项 Java 测试、文档 6 项真实 HTTP 检查通过。
