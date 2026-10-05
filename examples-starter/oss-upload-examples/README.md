@@ -23,7 +23,8 @@ mvn --batch-mode --no-transfer-progress clean verify
 java -jar examples-starter/oss-upload-examples/target/oss-upload-examples-4.0.0-SNAPSHOT.jar
 ```
 
-`GET /actuator/health` 用于确认就绪，应用不会自动创建桶。接口只操作 `OSS_BUCKET` 指定的桶，不接受调用方传入其他桶；上传请求单文件上限为 32 MiB，测试大文件请走分片。
+`GET /actuator/health` 用于确认就绪，应用不会自动创建桶。接口只操作 `OSS_BUCKET` 指定的桶，
+不接受任意业务桶；HTTP 单文件上限 32MiB，本例用 20MiB 文件验证 16MiB 阈值后的自动分片。
 
 ## 测试接口
 
@@ -40,6 +41,7 @@ java -jar examples-starter/oss-upload-examples/target/oss-upload-examples-4.0.0-
 | GET | `/api/oss/url` | `objectName`、`expiresSeconds`，默认 900 秒 |
 | GET | `/api/oss/metadata` | `objectName` |
 | PATCH | `/api/oss/metadata` | `objectName`、可选 `contentType`；JSON 用户元数据 Map |
+| PUT | `/api/oss/metadata` | `objectName`；JSON 完整用户元数据与标准响应头，null 标准头表示删除 |
 | DELETE | `/api/oss/objects` | `objectName` |
 | POST | `/api/oss/objects/delete-batch` | JSON 对象名称数组 |
 | POST | `/api/oss/multipart` | `objectName`；返回 `uploadId` |
@@ -60,14 +62,24 @@ python3 scripts/test-starter.py oss
 
 # 仅在当前代码已完成 clean verify 后使用
 python3 scripts/test-starter.py oss --skip-build
+
+# 不需要真实凭据，使用临时 MinIO 实例
+python3 scripts/test-starter.py oss --local-oss
 ```
+
+`--local-oss` 默认调用 `scripts/build-oss-fixture.py` 构建固定官方 MinIO 源码，
+首次需要 Go 和网络；源码校验 SHA-256，制品保存在用户缓存目录，后续无需再次编译。
+也可设置 `TEST_OSS_BINARY` 使用已有 MinIO，或设置 `TEST_OSS_IMAGE` 使用兼容镜像。
+测试服务端口、凭据和数据目录均为本次创建，结束后停止进程并清理测试数据；普通 Maven 构建不启用它。
 
 脚本自行选择随机端口并覆盖 `OSS_BUCKET` 为随机 `common-tool-it-*` 桶，不使用业务桶。检查包括：
 
 - 健康检查及桶创建、查询、重复创建。
 - 普通流、带进度流、文件三种上传，下载字节哈希与元数据长度比对。
+- 三种入口各上传 20MiB 内容，验证自动产生三片、完成进度和完整下载哈希。
 - 空文件、中文及特殊字符对象名，递归与非递归查询。
 - 元数据替换后内容不变，SigV4 预签名链接实际下载和有效期。
+- 标准头完整更新以及后续 Map 更新保留标准头，不能只检查返回 200。
 - 文件落盘下载进度及 SHA-256。
 - 两片文件上传、查询已上传分片、乱序清单合并及内容比对。
 - 取消分片任务并验证任务和对象均不存在。
@@ -78,3 +90,6 @@ python3 scripts/test-starter.py oss --skip-build
 每步输出 `PASS`，失败以非零退出码结束。报告写入 `target/api-test-report.json`，不包含凭据或预签名 URL。不对生产数据、生产桶策略进行操作。若外部服务不可用导致清理失败，脚本会报告本次测试桶名称供人工处理。
 
 `src/test` 中的 MockMvc 测试用于普通构建，替换外部存储依赖；不能将其通过当作真实 S3 联调通过。每次 Starter 完成后都必须执行上述真实接口脚本。
+
+本机缓存的 RustFS 版本未通过标准头 CopyObject 检查，限制已记录在 Starter 的 MIGRATION.md；
+完整验收采用固定源码版本 MinIO，未修改或重启已有业务存储服务。

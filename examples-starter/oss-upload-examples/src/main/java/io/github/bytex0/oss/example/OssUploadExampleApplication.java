@@ -12,6 +12,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class OssUploadExampleApplication {
 
+    /**
+     * 启动真实依赖 OSS Starter 的应用。
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(OssUploadExampleApplication.class, args);
     }

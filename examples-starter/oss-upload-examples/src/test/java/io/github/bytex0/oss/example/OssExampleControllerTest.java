@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.io.InputStream;
 import java.util.List;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,10 +58,20 @@ class OssExampleControllerTest {
      */
     private final MockMvc mvc;
 
+    /**
+     * 注入 MVC 请求入口。
+     *
+     * @param mvc 请求客户端
+     */
     OssExampleControllerTest(MockMvc mvc) {
         this.mvc = mvc;
     }
 
+    /**
+     * 文件请求通过组件上传到配置桶。
+     *
+     * @throws Exception 请求失败
+     */
     @Test
     void shouldUploadUsingConfiguredStarterAndBucket() throws Exception {
         when(ossClient.putObject(eq("test-bucket"), eq("file.txt"), any(InputStream.class), eq("text/plain")))
@@ -72,6 +84,11 @@ class OssExampleControllerTest {
         verify(ossClient).putObject(eq("test-bucket"), eq("file.txt"), any(InputStream.class), eq("text/plain"));
     }
 
+    /**
+     * 正确绑定分片 ETag 并转换 SDK 响应。
+     *
+     * @throws Exception 请求失败
+     */
     @Test
     void shouldBindETagAndTranslateSdkResponse() throws Exception {
         when(ossClient.completeMultipartUpload(any(ChunkMergeDTO.class)))
@@ -86,6 +103,11 @@ class OssExampleControllerTest {
         assertThat(request.getValue().getChunkList().getFirst().eTag()).isEqualTo("part-tag");
     }
 
+    /**
+     * 嵌套参数错误在调用存储之前被拒绝。
+     *
+     * @throws Exception 请求失败
+     */
     @Test
     void shouldRejectInvalidNestedPartsWithoutCallingStarter() throws Exception {
         mvc.perform(post("/api/oss/multipart/complete").contentType(MediaType.APPLICATION_JSON).content("""
@@ -95,6 +117,11 @@ class OssExampleControllerTest {
         verifyNoInteractions(ossClient);
     }
 
+    /**
+     * 未知上传模式返回 400。
+     *
+     * @throws Exception 请求失败
+     */
     @Test
     void shouldRejectUnknownUploadMode() throws Exception {
         mvc.perform(multipart("/api/oss/objects")
@@ -104,6 +131,11 @@ class OssExampleControllerTest {
         verifyNoInteractions(ossClient);
     }
 
+    /**
+     * 错误响应不得泄露 SDK 请求细节。
+     *
+     * @throws Exception 请求失败
+     */
     @Test
     void shouldHideSdkRequestDetailsInErrors() throws Exception {
         when(ossClient.getObjectMetadata("test-bucket", "missing"))
@@ -113,12 +145,38 @@ class OssExampleControllerTest {
                 .andExpect(jsonPath("$.message").value("对象存储请求失败"));
     }
 
+    /**
+     * 正确传递递归查询参数。
+     *
+     * @throws Exception 请求失败
+     */
     @Test
     void shouldPassRecursiveSelectionToStarter() throws Exception {
         when(ossClient.getAllObjectsByPrefix("test-bucket", "dir/", false)).thenReturn(List.of());
         mvc.perform(get("/api/oss/objects").param("prefix", "dir/").param("recursive", "false"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data").isEmpty());
         verify(ossClient).getAllObjectsByPrefix("test-bucket", "dir/", false);
+    }
+
+    /**
+     * 完整元数据接口映射标准头并携带原 ETag，不能退化为仅更新用户 Map。
+     *
+     * @throws Exception 请求失败
+     */
+    @Test
+    void shouldUpdateStandardHeadersThroughStarter() throws Exception {
+        when(ossClient.getObjectMetadata("test-bucket", "file"))
+                .thenReturn(HeadObjectResponse.builder().eTag("expected").build());
+        mvc.perform(put("/api/oss/metadata").param("objectName", "file").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"metadata":{"source":"test"},"contentType":"text/plain","cacheControl":"no-cache",
+                         "contentDisposition":"inline","contentLanguage":"en","expires":"2030-01-01T00:00:00Z"}
+                        """)).andExpect(status().isOk());
+        ArgumentCaptor<HeadObjectResponse> metadata = ArgumentCaptor.forClass(HeadObjectResponse.class);
+        verify(ossClient).updateObjectMetadata(eq("test-bucket"), eq("file"), metadata.capture());
+        assertThat(metadata.getValue().eTag()).isEqualTo("expected");
+        assertThat(metadata.getValue().cacheControl()).isEqualTo("no-cache");
+        assertThat(metadata.getValue().contentDisposition()).isEqualTo("inline");
+        assertThat(metadata.getValue().metadata()).containsEntry("source", "test");
     }
 
     /**
@@ -130,6 +188,11 @@ class OssExampleControllerTest {
     @TestConfiguration(proxyBeanMethods = false)
     static class PropertiesConfiguration {
 
+        /**
+         * 提供只含固定测试桶的属性。
+         *
+         * @return 测试配置
+         */
         @Bean
         OssProperties ossProperties() {
             OssProperties properties = new OssProperties();

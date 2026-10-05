@@ -19,14 +19,31 @@ public final class OssUtil {
      */
     private static final DateTimeFormatter DATE_PATH = DateTimeFormatter.ofPattern("yyyy/MM/dd/HH");
 
+    /**
+     * 工具类不需要实例状态。
+     */
     private OssUtil() {
     }
 
+    /**
+     * 按当前本地时间归档到年/月/日/小时目录。
+     *
+     * @param dir 可选前缀
+     * @param fileName 非空文件名
+     * @return 对象键
+     */
     public static String constructObjectName(String dir, String fileName) {
         return constructSimpleObjectName(
                 constructSimpleObjectName(dir, LocalDateTime.now().format(DATE_PATH)), fileName);
     }
 
+    /**
+     * 组合对象键，规范化前缀边界斜杠，不将其解释为文件系统路径。
+     *
+     * @param dir 可选前缀
+     * @param fileName 文件名，不得只有斜杠
+     * @return 对象键
+     */
     public static String constructSimpleObjectName(String dir, String fileName) {
         Assert.hasText(fileName, "fileName 不能为空");
         String prefix = dir == null ? "" : dir.replaceAll("^/+|/+$", "");
@@ -35,6 +52,14 @@ public final class OssUtil {
         return prefix.isEmpty() ? name : prefix + "/" + name;
     }
 
+    /**
+     * 对对象键分段编码并构造普通访问 URL，不生成签名。
+     *
+     * @param baseUrl 基础 URL
+     * @param dir 可选对象前缀
+     * @param fileName 对象文件名
+     * @return 编码后的 URL
+     */
     public static String constructObjectUrl(String baseUrl, String dir, String fileName) {
         Assert.hasText(baseUrl, "baseUrl 不能为空");
         String objectName = constructSimpleObjectName(dir, fileName);

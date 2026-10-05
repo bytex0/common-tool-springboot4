@@ -554,8 +554,93 @@ def start_redis(resources, environment, cluster):
 def stop_services(resources):
     for name in list(resources):
         result = subprocess.run(["docker", "rm", "-fv", name], capture_output=True, timeout=20)
-        require(result.returncode == 0 or b"No such container" in result.stderr, "Redis test container cleanup failed")
+        require(result.returncode == 0 or b"No such container" in result.stderr, "test container cleanup failed")
         resources.remove(name)
+
+
+def start_oss(resources, environment, temporary):
+    """启动本次测试专用的 S3 服务，随机凭据仅通过子进程环境传递。"""
+    image = environment.get("TEST_OSS_IMAGE")
+    if not image:
+        binary = environment.get("TEST_OSS_BINARY")
+        if not binary:
+            built = subprocess.run([sys.executable, str(ROOT / "scripts/build-oss-fixture.py")],
+                                   capture_output=True, check=True, timeout=960)
+            binary = built.stdout.decode().strip()
+        return start_oss_binary(binary, environment, temporary)
+    name = "common-tool-oss-test-" + uuid.uuid4().hex
+    resources.append(name)
+    access_key = "test" + uuid.uuid4().hex
+    secret_key = uuid.uuid4().hex + uuid.uuid4().hex
+    container_environment = environment.copy()
+    rustfs = "rustfs" in image.lower()
+    variables = {"RUSTFS_ACCESS_KEY": access_key, "RUSTFS_SECRET_KEY": secret_key,
+                 "RUSTFS_ADDRESS": "0.0.0.0:9000", "RUSTFS_CONSOLE_ENABLE": "false",
+                 "RUSTFS_VOLUMES": "/data"} if rustfs else {
+                     "MINIO_ROOT_USER": access_key, "MINIO_ROOT_PASSWORD": secret_key, "MINIO_BROWSER": "off"}
+    container_environment.update(variables)
+    command = ["docker", "run", "-d", "--name", name, "--label", "common-tool.test=true",
+               "-p", "127.0.0.1::9000"]
+    for variable in variables:
+        command.extend(["-e", variable])
+    command.append(image)
+    if not rustfs:
+        command.extend(["server", "/data", "--address", ":9000"])
+    subprocess.run(command, env=container_environment, check=True, capture_output=True, timeout=120)
+    published = subprocess.run(["docker", "port", name, "9000/tcp"], capture_output=True, check=True, timeout=10)
+    endpoint = "http://" + published.stdout.decode().strip()
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        running = subprocess.run(["docker", "inspect", "--format", "{{.State.Running}}", name],
+                                 capture_output=True, check=True, timeout=10)
+        if running.stdout.strip() != b"true":
+            break
+        try:
+            status, _ = request(endpoint)
+            if status in (200, 403):
+                environment.update({"OSS_ENDPOINT": endpoint, "OSS_ACCESS_KEY": access_key,
+                                    "OSS_ACCESS_SECRET": secret_key, "OSS_REGION": "us-east-1"})
+                return
+        except (URLError, TimeoutError, ConnectionError):
+            pass
+        time.sleep(0.3)
+    # 服务启动日志可能包含凭据信息，不输出日志正文。
+    raise AssertionError("dedicated S3 test service did not become ready")
+
+
+def start_oss_binary(binary, environment, temporary):
+    """以随机凭据与临时数据目录启动本地 MinIO，不安装常驻服务。"""
+    require(Path(binary).is_file() and os.access(binary, os.X_OK), "TEST_OSS_BINARY is not an executable file")
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    data = Path(temporary) / "oss-data"
+    data.mkdir()
+    access_key = "test" + uuid.uuid4().hex
+    secret_key = uuid.uuid4().hex + uuid.uuid4().hex
+    server_environment = environment.copy()
+    server_environment.update(MINIO_ROOT_USER=access_key, MINIO_ROOT_PASSWORD=secret_key, MINIO_BROWSER="off")
+    endpoint = f"http://127.0.0.1:{port}"
+    with (Path(temporary) / "oss-server.log").open("w") as log:
+        server = subprocess.Popen([binary, "server", str(data), "--address", f"127.0.0.1:{port}"],
+                                  env=server_environment, stdout=log, stderr=subprocess.STDOUT)
+    try:
+        deadline = time.monotonic() + 90
+        while time.monotonic() < deadline:
+            require(server.poll() is None, "dedicated S3 binary exited before readiness")
+            try:
+                status, _ = request(endpoint + "/minio/health/ready")
+                if status == 200:
+                    environment.update(OSS_ENDPOINT=endpoint, OSS_ACCESS_KEY=access_key,
+                                       OSS_ACCESS_SECRET=secret_key, OSS_REGION="us-east-1")
+                    return server
+            except (URLError, TimeoutError, ConnectionError):
+                pass
+            time.sleep(0.2)
+        raise AssertionError("dedicated S3 binary did not become ready")
+    except BaseException:
+        stop_process(server)
+        raise
 
 
 def test_dict(base, record):
@@ -793,7 +878,7 @@ def test_local_cache(base, record):
         record("cache-cleanup")
 
 
-def test_oss(base, bucket, record):
+def test_oss(base, bucket, record, environment):
     # The application is configured with one UUID-named bucket; no arbitrary bucket is accepted by its API.
     api(base, "oss/bucket", expected=404)
     created = False
@@ -842,11 +927,33 @@ def test_oss(base, bucket, record):
         require(metadata["contentType"] == "text/plain", "content type replacement failed")
         check_download(base, unicode_key, b"utf8-key")
         record("metadata-copy-preserves-content")
+        replacement = {"metadata": {"source": "standard-headers"}, "contentType": "text/plain",
+                       "cacheControl": "private, max-age=77", "contentDisposition": 'attachment; filename="test.txt"',
+                       "contentEncoding": "identity", "contentLanguage": "en", "expires": "2030-01-01T00:00:00Z"}
+        api(base, "oss/metadata", "PUT", replacement, {"objectName": unicode_key})
+        metadata = api(base, "oss/metadata", query={"objectName": unicode_key})
+        for field in ("cacheControl", "contentDisposition", "contentEncoding", "contentLanguage", "contentType"):
+            require(metadata[field] == replacement[field], f"metadata header {field} was not updated")
+        api(base, "oss/metadata", "PATCH", {"source": "preserved"}, {"objectName": unicode_key})
+        require(api(base, "oss/metadata", query={"objectName": unicode_key})["cacheControl"] == replacement["cacheControl"],
+                "user metadata replacement removed standard headers")
+        check_download(base, unicode_key, b"utf8-key")
+        record("metadata-standard-headers-and-retention")
+
+        automatic = bytes(range(256)) * (20 * 4096)
+        for mode in ("stream", "progress", "file"):
+            key = f"automatic/{mode}.bin"
+            result = upload(base, "objects", automatic, {"objectName": key, "mode": mode})
+            require(result["eTag"].strip('"').endswith("-3"), "large upload did not use three automatic parts")
+            if mode != "stream":
+                require(result["progress"] == 100, "automatic multipart progress did not complete")
+            check_download(base, key, automatic)
+        record("automatic-multipart-all-upload-overloads")
 
         signed_url = api(base, "oss/url", query={"objectName": unicode_key, "expiresSeconds": 60})["url"]
         # Never print or persist the signed URL. Compare against the configured endpoint before requesting it.
         signed = urlparse(signed_url)
-        endpoint = urlparse(os.environ.get("OSS_ENDPOINT", "http://127.0.0.1:19000"))
+        endpoint = urlparse(environment.get("OSS_ENDPOINT", "http://127.0.0.1:19000"))
         require(signed.scheme == endpoint.scheme and signed.netloc == endpoint.netloc,
                 "presigned URL endpoint mismatch")
         require(parse_qs(signed.query).get("X-Amz-Expires") == ["60"], "presigned duration mismatch")
@@ -960,6 +1067,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("starter", choices=MODULES)
     parser.add_argument("--skip-build", action="store_true", help="use the already-verified current JAR")
+    parser.add_argument("--local-oss", action="store_true", help="create a dedicated local S3 service with random credentials")
     args = parser.parse_args()
     module = ROOT / "examples-starter" / MODULES[args.starter]
     report_path = module / "target" / "api-test-report.json"
@@ -978,7 +1086,8 @@ def main():
 
     signal.signal(signal.SIGTERM, interrupted)
     try:
-        if args.starter == "oss":
+        require(not args.local_oss or args.starter == "oss", "--local-oss is only valid for oss")
+        if args.starter == "oss" and not args.local_oss:
             require(os.environ.get("OSS_ACCESS_KEY") and os.environ.get("OSS_ACCESS_SECRET"),
                     "OSS_ACCESS_KEY and OSS_ACCESS_SECRET environment variables are required")
         subprocess.run([sys.executable, str(ROOT / "scripts/check-coordinates.py")], cwd=ROOT, check=True)
@@ -1000,6 +1109,9 @@ def main():
             start_redis(resources, environment, cluster=args.starter == "multi-redis")
             record("redis-test-service-ready")
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
+            if args.local_oss:
+                peer = start_oss(resources, environment, temporary)
+                record("oss-test-service-ready")
             if args.starter == "sftp":
                 peer = start_sftp(jar, environment, temporary)
                 record("sftp-test-service-ready")
@@ -1059,7 +1171,7 @@ def main():
                     elif args.starter == "idempotent":
                         test_idempotent(base, peer_base, record)
                     else:
-                        test_oss(base, bucket, record)
+                        test_oss(base, bucket, record, environment)
                 finally:
                     stop_process(peer)
                     stop_process(process)
@@ -1067,6 +1179,8 @@ def main():
         if resources:
             stop_services(resources)
             record("test-service-cleanup")
+        elif args.local_oss:
+            record("oss-test-service-cleanup")
         report["passed"] = True
         print(f"PASS {args.starter}: {len(report['checks'])} checks", flush=True)
         return 0

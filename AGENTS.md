@@ -47,7 +47,7 @@
 - 以《阿里巴巴 Java 开发手册》为编码基准，参考 [官方 p3c 项目](https://github.com/alibaba/p3c)。强制项必须满足，推荐项不适用时说明理由；本文件有更严格规定时按更严格规定执行。不能只通过少数静态检查就宣称全面符合阿里规范。
 - 新写代码不要使用 `@Autowired`。使用构造器注入或 `@Bean` 方法参数注入。
 - 代码中的类型通过 `import` 导入，不在字段、方法签名或表达式中使用全限定类名。
-- 新建类、接口、枚举及嵌套类型都要添加职责说明，作者统一为 `bytex0`。
+- 新建类、接口、枚举及嵌套类型都要添加职责说明，按最新约定作者使用 `linshiqiang`；不批量改写已有作者。
 - 类注释模板只用于新建类型；存量类型缺失或不完整的注释必须补齐，但不得重写已有正确说明或篡改原有 `@since`。
 - `@since` 必须填写创建时的实际日期和时间，不照抄示例时间。可执行 `TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S'` 获取。
 
@@ -55,7 +55,7 @@
 /**
  * 功能名称(ExampleClass)职责说明
  *
- * @author bytex0
+ * @author linshiqiang
  * @since 2026-10-05 14:42:56
  */
 ```
@@ -159,6 +159,8 @@
 - 不把真实 AK/SK、密码、令牌或签名 URL 写入源码、文档、测试固定数据、日志或提交信息。
 - 联调凭据仅通过环境变量或未跟踪的本地配置传入；测试不能依赖开发者的真实凭据。
 - 外部服务集成测试需显式启用。仅创建和清理本次测试专用资源，不修改已有业务桶、对象或访问策略。
+- OSS 可使用 `python3 scripts/test-starter.py oss --local-oss` 启动隔离测试服务。首次由 `scripts/build-oss-fixture.py` 校验固定官方源码摘要并构建 MinIO，需 Go 和网络；后续复用用户缓存，也可通过 `TEST_OSS_BINARY` 或 `TEST_OSS_IMAGE` 提供已准备好的测试服务。普通 Maven/CI 不触发该构建。
+- 第三方服务返回成功但未保存预期结果时，必须保留业务断言，定位协议/服务差异并记录版本。不能只以 HTTP 200 判定功能可用，也不能静默换成有额外数据副作用的实现绕过服务缺陷。
 - 新增 Starter 至少测试自动装配、关闭开关、用户 Bean 覆盖及关键操作。
 - 普通构建和 CI 不依赖本地中间件、GPG 或发布凭据。
 - 坐标修改后执行 `python3 scripts/check-coordinates.py`；全量构建后再执行 `python3 scripts/check-coordinates.py --built-jars`，检查 BOM、示例依赖及普通库 JAR。坐标规则测试入口为 `python3 -m unittest discover -s scripts -p 'test_check_coordinates.py'`。

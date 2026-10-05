@@ -31,12 +31,18 @@ class OssConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(OssConfiguration.class));
 
+    /**
+     * 使用 Boot 4 imports 资源发现自动配置。
+     */
     @Test
     void shouldRegisterImports() {
         assertThat(ImportCandidates.load(AutoConfiguration.class, getClass().getClassLoader()))
                 .contains(OssConfiguration.class.getName());
     }
 
+    /**
+     * 默认关闭及显式关闭均不创建外部连接客户端。
+     */
     @Test
     void shouldNotConnectByDefaultOrWhenDisabled() {
         runner.run(context -> assertThat(context).doesNotHaveBean(OssClient.class));
@@ -44,6 +50,9 @@ class OssConfigurationTest {
                 .run(context -> assertThat(context).doesNotHaveBean(S3Client.class));
     }
 
+    /**
+     * 完整配置只构造客户端，不在启动时访问服务端。
+     */
     @Test
     void shouldBuildClientsWithoutConnectingToEndpoint() {
         configured().run(context -> {
@@ -53,6 +62,9 @@ class OssConfigurationTest {
         });
     }
 
+    /**
+     * 自定义业务客户端时不强制默认凭据与 SDK 客户端。
+     */
     @Test
     void shouldBackOffForCustomOssClientWithoutCredentials() {
         OssClient custom = mock(OssClient.class);
@@ -62,6 +74,9 @@ class OssConfigurationTest {
         });
     }
 
+    /**
+     * 容器管理的 SDK Bean 保持自定义并在容器退出时关闭。
+     */
     @Test
     void shouldSupportCustomSdkClientsAndCloseThem() {
         S3Client client = mock(S3Client.class);
@@ -73,6 +88,9 @@ class OssConfigurationTest {
         verify(presigner).close();
     }
 
+    /**
+     * 业务凭据提供器优先于配置密钥。
+     */
     @Test
     void shouldUseCustomCredentialsProvider() {
         AwsCredentialsProvider provider = StaticCredentialsProvider.create(
@@ -82,6 +100,9 @@ class OssConfigurationTest {
                 .run(context -> assertThat(context).hasNotFailed().hasSingleBean(OssClient.class));
     }
 
+    /**
+     * 缺失凭据时启动明确失败。
+     */
     @Test
     void shouldRejectMissingCredentials() {
         runner.withPropertyValues("oss.enable=true", "oss.endpoint=http://127.0.0.1:1").run(context -> {
@@ -90,6 +111,9 @@ class OssConfigurationTest {
         });
     }
 
+    /**
+     * 拒绝非法连接和分片参数，不通过 SDK 延迟暴露配置错误。
+     */
     @Test
     void shouldRejectInvalidConnectionSettings() {
         configured().withPropertyValues("oss.endpoint=ftp://localhost").run(context ->
@@ -98,8 +122,15 @@ class OssConfigurationTest {
                 assertThat(context).hasFailed());
         configured().withPropertyValues("oss.socket-timeout=0s").run(context ->
                 assertThat(context).hasFailed());
+        configured().withPropertyValues("oss.multipart-threshold=1MB").run(context ->
+                assertThat(context).hasFailed());
+        configured().withPropertyValues("oss.multipart-part-size=6GB").run(context ->
+                assertThat(context).hasFailed());
     }
 
+    /**
+     * SDK 类型被排除时自动配置退让。
+     */
     @Test
     void shouldBackOffWithoutSdkClasses() {
         runner.withClassLoader(new FilteredClassLoader("software.amazon.awssdk.services.s3"))
@@ -107,6 +138,11 @@ class OssConfigurationTest {
                 .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(OssClient.class));
     }
 
+    /**
+     * 提供不会发起连接的测试配置，不包含真实凭据。
+     *
+     * @return 具有显式测试设置的上下文
+     */
     private ApplicationContextRunner configured() {
         return runner.withPropertyValues("oss.enable=true", "oss.endpoint=http://127.0.0.1:1",
                 "oss.access-key=test-access", "oss.access-secret=test-secret");

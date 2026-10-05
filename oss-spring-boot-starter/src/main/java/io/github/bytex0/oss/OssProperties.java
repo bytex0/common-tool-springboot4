@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.Assert;
+import org.springframework.util.unit.DataSize;
 
 import java.net.URI;
 import java.time.Duration;
@@ -79,6 +80,19 @@ public class OssProperties {
      */
     private Duration apiCallTimeout = Duration.ofMinutes(5);
 
+    /**
+     * 自动转为分片上传的文件大小阈值，默认 16MB，必须在 5MB 至 5GB 内。
+     */
+    private DataSize multipartThreshold = DataSize.ofMegabytes(16);
+
+    /**
+     * 自动分片的基础大小，默认 8MB，必须在 5MB 至 5GB 内；超大文件会自动增大以控制分片数。
+     */
+    private DataSize multipartPartSize = DataSize.ofMegabytes(8);
+
+    /**
+     * 校验连接配置，不发起网络请求。
+     */
     void validateConnection() {
         Assert.notNull(endpoint, "oss.endpoint 不能为空");
         Assert.isTrue(("http".equals(endpoint.getScheme()) || "https".equals(endpoint.getScheme()))
@@ -92,8 +106,27 @@ public class OssProperties {
         requirePositive(connectionTimeout, "oss.connection-timeout");
         requirePositive(socketTimeout, "oss.socket-timeout");
         requirePositive(apiCallTimeout, "oss.api-call-timeout");
+        validateTransfers();
     }
 
+    /**
+     * 独立校验传输配置，用户提供 SDK 客户端时也生效。
+     */
+    void validateTransfers() {
+        long minimum = DataSize.ofMegabytes(5).toBytes();
+        long maximum = DataSize.ofGigabytes(5).toBytes();
+        Assert.isTrue(multipartThreshold != null && multipartThreshold.toBytes() >= minimum
+                && multipartThreshold.toBytes() <= maximum, "oss.multipart-threshold必须在5MB至5GB之间");
+        Assert.isTrue(multipartPartSize != null && multipartPartSize.toBytes() >= minimum
+                && multipartPartSize.toBytes() <= maximum, "oss.multipart-part-size必须在5MB至5GB之间");
+    }
+
+    /**
+     * 检查超时必须为正数。
+     *
+     * @param duration 超时
+     * @param name 配置名称
+     */
     private void requirePositive(Duration duration, String name) {
         Assert.isTrue(duration != null && duration.compareTo(Duration.ZERO) > 0, name + " 必须大于 0");
     }

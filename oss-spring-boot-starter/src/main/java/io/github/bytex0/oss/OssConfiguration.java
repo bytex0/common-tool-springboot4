@@ -44,6 +44,13 @@ public class OssConfiguration {
     @ConditionalOnMissingBean(OssClient.class)
     static class DefaultClientConfiguration {
 
+        /**
+         * 创建由 Spring 关闭的同步客户端，不在构造时连接 S3。
+         *
+         * @param properties 连接配置
+         * @param credentialsProvider 可选外部凭据提供器
+         * @return SDK 客户端
+         */
         @Bean(destroyMethod = "close")
         @ConditionalOnMissingBean(S3Client.class)
         S3Client s3Client(OssProperties properties, ObjectProvider<AwsCredentialsProvider> credentialsProvider) {
@@ -64,6 +71,13 @@ public class OssConfiguration {
                     .build();
         }
 
+        /**
+         * 创建与上传相同端点和签名配置的签名器。
+         *
+         * @param properties 连接配置
+         * @param credentialsProvider 可选凭据来源
+         * @return 签名器
+         */
         @Bean(destroyMethod = "close")
         @ConditionalOnMissingBean(S3Presigner.class)
         S3Presigner s3Presigner(OssProperties properties, ObjectProvider<AwsCredentialsProvider> credentialsProvider) {
@@ -76,11 +90,28 @@ public class OssConfiguration {
                     .build();
         }
 
+        /**
+         * 注册包含大文件自动分片策略的客户端封装。
+         *
+         * @param s3Client 同步客户端
+         * @param s3Presigner 签名器
+         * @param properties 传输策略
+         * @return 对象存储接口
+         */
         @Bean
-        OssClient ossClient(S3Client s3Client, S3Presigner s3Presigner) {
-            return new S3OssClient(s3Client, s3Presigner);
+        OssClient ossClient(S3Client s3Client, S3Presigner s3Presigner, OssProperties properties) {
+            properties.validateTransfers();
+            return new S3OssClient(s3Client, s3Presigner,
+                    properties.getMultipartThreshold().toBytes(), properties.getMultipartPartSize().toBytes());
         }
 
+        /**
+         * 优先使用业务凭据提供器，否则验证显式配置，不记录密钥。
+         *
+         * @param properties 连接配置
+         * @param providers 业务凭据提供器
+         * @return 当前凭据来源
+         */
         private AwsCredentialsProvider credentials(OssProperties properties,
                                                     ObjectProvider<AwsCredentialsProvider> providers) {
             return providers.getIfAvailable(() -> {
@@ -91,6 +122,12 @@ public class OssConfiguration {
             });
         }
 
+        /**
+         * 统一签名器与客户端的寻址和分块协议配置。
+         *
+         * @param properties 连接配置
+         * @return S3 协议配置
+         */
         private S3Configuration serviceConfiguration(OssProperties properties) {
             return S3Configuration.builder()
                     .pathStyleAccessEnabled(properties.isPathStyleAccess())
