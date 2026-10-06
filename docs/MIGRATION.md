@@ -12,6 +12,12 @@
 104 项真实接口/生命周期检查和 9 项 Python 测试通过，18 个自有 Starter 坐标统一为
 `*-spring-boot4-starter` 并通过制品校验。未纳入批次的模块继续保持待整改状态。
 
+2026-10-06 后续已完成敏感词补齐：恢复原过滤器、分类、注解、服务和工具入口，
+修复词库快照、白名单、索引与资源加载，并补上原未实现的 Web 处理。
+全量 268 项 Java 测试、敏感词 12 项真实接口/生命周期检查、9 项 Python 测试通过。
+兼容边界与分项验收见 [敏感词功能对照](../sensitive-word-spring-boot-starter/MIGRATION.md)。
+剩余待补齐模块为 common-tool、multi-redis、desensitize、excel、script、dynamic-threadpool。
+
 ## 原项目观察
 
 本次参考同级目录 `common-tool` 的实际 POM、基础自动配置、响应模型、示例工程及发布工作流：

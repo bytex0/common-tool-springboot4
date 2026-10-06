@@ -4,3 +4,12 @@ spring:
 sensitive-word:
   words: [bad, badly]
   white-list: [badge]
+  web:
+    enabled: true
+    url-patterns: [/api/sensitive/web/**]
+    exclude-patterns: [/api/sensitive/web/excluded]
+    check-params: [selected]
+    handle-type: REPLACE
+    max-body-bytes: 4096
+server:
+  address: 127.0.0.1

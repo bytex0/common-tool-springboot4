@@ -1,13 +1,13 @@
 package io.github.bytex0.sensitive;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import io.github.bytex0.sensitive.core.DfaSensitiveWordFilter;
+import io.github.bytex0.sensitive.core.MatchType;
+import io.github.bytex0.sensitive.core.SensitiveWordOperations;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.ResourceLoader;
+
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
-import org.ahocorasick.trie.Emit;
-import org.ahocorasick.trie.Trie;
-import org.springframework.util.Assert;
 
 /**
  * 基于 Aho-Corasick 的原子词库服务，查询和替换共享同一白名单语义。
@@ -17,123 +17,115 @@ import org.springframework.util.Assert;
  */
 public class SensitiveWordService {
 
-    private final boolean ignoreCase;
-
-    private final boolean skipWhitespace;
-
-    private final Trie whitelist;
-
-    private volatile Dictionary dictionary;
+    /**
+     * 与原包入口共享的实际业务组件。
+     */
+    private final SensitiveWordOperations operations;
 
     /**
-     * 原文 UTF-16 索引，结束位置不包含在结果中。
+     * 保留当前独立构造器，构造完成后词库可用。
      *
-     * @param word 匹配的原文
-     * @param startIndex 开始位置
-     * @param endIndex 结束位置
-     * @author bytex0
-     * @since 2026-10-05 19:21:42
+     * @param properties 配置
      */
-    public record Match(String word, int startIndex, int endIndex) {}
-
-    /**
-     * 已编译词库不可变快照。
-     *
-     * @author bytex0
-     * @since 2026-10-05 19:21:42
-     */
-    private record Dictionary(Set<String> words, Trie trie) {}
-
     public SensitiveWordService(SensitiveWordProperties properties) {
-        ignoreCase = properties.isIgnoreCase();
-        skipWhitespace = properties.isSkipWhitespace();
-        whitelist = compile(properties.getWhiteList()).trie();
-        replaceWords(properties.getWords());
+        this(properties, new DefaultResourceLoader());
     }
 
-    public synchronized void replaceWords(Set<String> words) {
-        dictionary = compile(words);
+    /**
+     * 使用指定资源加载器构造独立服务。
+     *
+     * @param properties 配置
+     * @param resources 资源加载器
+     */
+    public SensitiveWordService(SensitiveWordProperties properties, ResourceLoader resources) {
+        this(new SensitiveWordOperations(new DfaSensitiveWordFilter(properties), properties, resources));
     }
 
-    public synchronized void addWord(String word) {
-        Set<String> next = new HashSet<>(dictionary.words());
-        next.add(word);
-        replaceWords(next);
+    /**
+     * 包装已配置的业务组件，初始化具有幂等性。
+     *
+     * @param operations 业务组件
+     */
+    private SensitiveWordService(SensitiveWordOperations operations) {
+        this.operations = operations;
+        operations.afterPropertiesSet();
     }
 
-    public synchronized void removeWord(String word) {
-        Set<String> next = new HashSet<>(dictionary.words());
-        next.remove(normalize(Objects.requireNonNull(word)));
-        replaceWords(next);
+    /**
+     * 创建共享门面，原包服务和根包服务使用同一词库/白名单。
+     *
+     * @param operations 业务组件
+     * @return 当前接口门面
+     */
+    public static SensitiveWordService from(SensitiveWordOperations operations) {
+        return new SensitiveWordService(operations);
     }
 
+    /**
+     * 原子替换内置词库。
+     *
+     * @param words 词条
+     */
+    public void replaceWords(Set<String> words) {
+        operations.replaceWords(words);
+    }
+
+    /**
+     * 添加无分类词。
+     *
+     * @param word 词条
+     */
+    public void addWord(String word) {
+        operations.addWord(word);
+    }
+
+    /**
+     * 删除词条，遵守当前归一化规则。
+     *
+     * @param word 词条
+     */
+    public void removeWord(String word) {
+        operations.removeWord(word);
+    }
+
+    /**
+     * 获取词数。
+     *
+     * @return 唯一词数
+     */
     public int size() {
-        return dictionary.words().size();
+        return operations.size();
     }
 
+    /**
+     * 检测是否命中，白名单范围不参与检测。
+     *
+     * @param text 原文
+     * @return 是否命中
+     */
     public boolean contains(String text) {
-        return !findAll(text, true).isEmpty();
+        return operations.contains(text);
     }
 
+    /**
+     * 保留根包结果的原文文本和右开区间，不混用旧结果的闭区间协议。
+     *
+     * @param text 原文
+     * @param longest 是否最长匹配
+     * @return 根包结果
+     */
     public List<Match> findAll(String text, boolean longest) {
-        if (text == null || text.isEmpty()) {
-            return List.of();
-        }
-        Assert.isTrue(text.length() <= 65536, "Text exceeds 65536 UTF-16 units");
-        StringBuilder normalized = new StringBuilder();
-        int[] starts = new int[text.length()];
-        int[] ends = new int[text.length()];
-        for (int offset = 0; offset < text.length();) {
-            int cp = text.codePointAt(offset);
-            int end = offset + Character.charCount(cp);
-            if (!(skipWhitespace && Character.isWhitespace(cp))) {
-                int before = normalized.length();
-                normalized.appendCodePoint(ignoreCase ? Character.toLowerCase(cp) : cp);
-                for (int index = before; index < normalized.length(); index++) {
-                    starts[index] = offset;
-                    ends[index] = end;
-                }
-            }
-            offset = end;
-        }
-        String input = normalized.toString();
-        boolean[] allowed = new boolean[input.length()];
-        whitelist.parseText(input, emit -> {
-            for (int index = emit.getStart(); index <= emit.getEnd(); index++) {
-                allowed[index] = true;
-            }
-            return true;
-        });
-        int[] protectedCount = new int[input.length() + 1];
-        for (int index = 0; index < input.length(); index++) {
-            protectedCount[index + 1] = protectedCount[index] + (allowed[index] ? 1 : 0);
-        }
-        Emit[] selected = new Emit[input.length()];
-        Dictionary snapshot = dictionary;
-        snapshot.trie().parseText(input, emit -> {
-            int start = emit.getStart();
-            if (protectedCount[emit.getEnd() + 1] != protectedCount[start]) {
-                return true;
-            }
-            Emit previous = selected[start];
-            if (previous == null || (longest ? emit.getEnd() > previous.getEnd() : emit.getEnd() < previous.getEnd())) {
-                selected[start] = emit;
-            }
-            return true;
-        });
-        List<Match> matches = new ArrayList<>();
-        for (int index = 0; index < selected.length; index++) {
-            Emit emit = selected[index];
-            if (emit != null) {
-                int start = starts[index];
-                int end = ends[emit.getEnd()];
-                matches.add(new Match(text.substring(start, end), start, end));
-                index = emit.getEnd();
-            }
-        }
-        return List.copyOf(matches);
+        return operations.findAll(text, longest ? MatchType.MAX_MATCH : MatchType.MIN_MATCH).stream()
+                .map(match -> new Match(text.substring(match.getStartIndex(), match.getEndIndex() + 1),
+                        match.getStartIndex(), match.getEndIndex() + 1)).toList();
     }
 
+    /**
+     * 保留根包按最长匹配、Unicode 码点数输出星号的行为。
+     *
+     * @param text 原文
+     * @return 替换结果
+     */
     public String replace(String text) {
         List<Match> matches = findAll(text, true);
         if (matches.isEmpty()) {
@@ -147,30 +139,40 @@ public class SensitiveWordService {
         return result.toString();
     }
 
+    /**
+     * 保留根包拒绝异常类型，不在异常消息内输出正文。
+     *
+     * @param text 原文
+     */
     public void reject(String text) {
         if (contains(text)) {
             throw new IllegalArgumentException("Text contains prohibited content");
         }
     }
 
-    private Dictionary compile(Set<String> words) {
-        Objects.requireNonNull(words, "words");
-        Assert.isTrue(words.size() <= 10000, "Dictionary exceeds 10000 words");
-        Set<String> normalized = new HashSet<>();
-        for (String word : words) {
-            Assert.hasText(word, "Words must not be blank");
-            Assert.isTrue(word.length() <= 128, "Word exceeds 128 UTF-16 units");
-            String value = normalize(word);
-            Assert.hasText(value, "Normalized word must not be empty");
-            normalized.add(value);
-        }
-        return new Dictionary(Set.copyOf(normalized), Trie.builder().addKeywords(normalized).build());
-    }
+    /**
+     * 原文 UTF-16 索引，结束位置不包含在结果中。
+     *
+     * @param word 匹配的原文
+     * @param startIndex 开始位置
+     * @param endIndex 结束位置
+     * @author bytex0
+     * @since 2026-10-05 19:21:42
+     */
+    public record Match(
+            /**
+             * 匹配原文。
+             */
+            String word,
 
-    private String normalize(String value) {
-        StringBuilder result = new StringBuilder();
-        value.codePoints().filter(cp -> !(skipWhitespace && Character.isWhitespace(cp)))
-                .forEach(cp -> result.appendCodePoint(ignoreCase ? Character.toLowerCase(cp) : cp));
-        return result.toString();
+            /**
+             * 包含的 UTF-16 起点。
+             */
+            int startIndex,
+
+            /**
+             * 不包含的 UTF-16 终点。
+             */
+            int endIndex) {
     }
 }

@@ -149,6 +149,86 @@ def test_sensitive_word(base, record):
         require(status == expected and json.loads(body)["code"] == (0 if expected == 200 else expected),
                 "sensitive rejection policy failed")
     record("sensitive-rejection-and-bounds")
+    smallest = api(base, "sensitive/legacy", query={"text": "😀 BADly", "mode": "MIN_MATCH"})
+    longest = api(base, "sensitive/legacy", query={"text": "😀 BADly", "mode": "MAX_MATCH"})
+    require(smallest["matches"][0]["word"] == "bad" and smallest["matches"][0]["startIndex"] == 3
+            and smallest["matches"][0]["endIndex"] == 5, "legacy closed interval or dictionary spelling changed")
+    require(longest["matches"][0]["word"] == "badly" and longest["matches"][0]["endIndex"] == 7,
+            "maximum matching failed")
+    require(smallest["replaced"] == "😀 ###ly" and longest["highlight"] == "😀 <b>BADly</b>",
+            "legacy replacement/highlight damaged original text")
+    record("sensitive-legacy-match-modes-and-closed-indices")
+
+    api(base, "sensitive/words", "PUT", ["flag"], {"category": "custom"})
+    categorized = api(base, "sensitive/legacy", query={"text": "FLAG"})
+    require(categorized["matches"][0]["category"] == "custom", "word category missing")
+    api(base, "sensitive/whitelist", "PUT", ["flag"])
+    require(api(base, "sensitive/legacy", query={"text": "FLAG"})["matches"] == [], "dynamic whitelist query failed")
+    require(api(base, "sensitive/legacy", query={"text": "FLAG"})["replaced"] == "FLAG", "whitelist ignored during replace")
+    api(base, "sensitive/whitelist", "DELETE", query={"word": "flag"})
+    require(api(base, "sensitive/legacy", query={"text": "FLAG"})["matches"], "whitelist removal failed")
+    api(base, "sensitive/words", "DELETE", query={"word": "FLAG"})
+    require(api(base, "sensitive/legacy", query={"text": "flag"})["matches"] == [], "normalized deletion failed")
+    api(base, "sensitive/words", "PUT", ["validword", "x" * 129], expected=400)
+    require(api(base, "sensitive/legacy", query={"text": "validword"})["matches"] == [], "failed batch partially changed dictionary")
+    record("sensitive-category-whitelist-and-atomic-management")
+
+    require(api(base, "sensitive/annotations/parameter", "POST", query={"text": "bad", "other": "bad"})["text"] == "***:bad",
+            "independent parameter annotation failed")
+    document = api(base, "sensitive/annotations/document", "POST", {"content": "badly", "other": "bad"})
+    require(document == {"content": "*****", "other": "bad"}, "field strategy precedence or field selection failed")
+    status, body = request(base + "/api/sensitive/annotations/reject", "POST", b"bad", {"Content-Type": "text/plain"})
+    require(status == 400 and json.loads(body)["code"] == 400, "method annotation did not reject")
+    status, body = request(base + "/api/sensitive/annotations/modes", "POST", b"badge bad", {"Content-Type": "text/plain"})
+    modes = json.loads(body)["data"]
+    require(status == 200 and modes["detected"] == "badge bad"
+            and modes["highlight"] == 'badge <span class="sensitive">bad</span>', "annotation modes or whitelist failed")
+    record("sensitive-method-parameter-field-annotations")
+
+    document = api(base, "sensitive/web/json", "POST", {"content": "BAD", "items": ["badge", "bad"], "number": 1})
+    require(document == {"content": "***", "items": ["badge", "***"], "number": 1}, "web JSON structure changed")
+    require(api(base, "sensitive/web/query", query={"selected": "bad", "other": "bad"})
+            == {"selected": "***", "other": "bad"}, "web parameter selection failed")
+    status, body = request(base + "/api/sensitive/web/excluded", "POST", b"bad", {"Content-Type": "text/plain"})
+    require(status == 200 and json.loads(body)["data"]["text"] == "bad", "excluded path was modified")
+    status, body = request(base + "/api/sensitive/web/text", "POST", b"x" * 4097, {"Content-Type": "text/plain"})
+    require(status == 413 and json.loads(body)["code"] == 413, "web body limit was ignored")
+    status, body = request(base + "/api/sensitive/web/json", "POST", b"{broken}", {"Content-Type": "application/json"})
+    require(status == 400 and json.loads(body)["code"] == 400, "invalid JSON was accepted")
+    record("sensitive-web-json-paths-parameters-and-bounds")
+
+    api(base, "sensitive/load-example", "POST")
+    require(api(base, "sensitive/legacy", query={"text": "敏感词测试"})["matches"], "built-in resource was not packaged/loaded")
+    require(api(base, "sensitive/words/all", "DELETE")["size"] == 0, "clear left dictionary entries")
+    api(base, "sensitive/words", "PUT", ["bad", "badly"])
+    require(api(base, "sensitive/legacy", query={"text": "bad"})["matches"], "dictionary did not recover after clear")
+    record("sensitive-resource-loading-clear-and-recovery")
+
+
+def test_sensitive_word_modes(jar, module, temporary, environment, record):
+    """独立进程验证 Web 的拒绝、高亮、仅检测三种配置，不改变主测试进程的策略。"""
+    for mode in ("EXCEPTION", "HIGHLIGHT", "DETECT_ONLY"):
+        log_path = Path(temporary) / ("sensitive-" + mode.lower() + ".log")
+        process = None
+        try:
+            with log_path.open("w") as log:
+                process = subprocess.Popen(
+                    ["java", "-jar", str(jar), "--server.port=0", "--server.address=127.0.0.1",
+                     "--spring.output.ansi.enabled=never", "--sensitive-word.web.handle-type=" + mode],
+                    cwd=module, env=environment, stdout=log, stderr=subprocess.STDOUT)
+            base = wait_for_application(process, log_path)
+            status, body = request(base + "/api/sensitive/web/text", "POST", b"bad", {"Content-Type": "text/plain"})
+            data = json.loads(body)
+            if mode == "EXCEPTION":
+                require(status == 400 and data["code"] == 400, "web exception mode did not reject")
+            else:
+                expected = '<span class="sensitive">bad</span>' if mode == "HIGHLIGHT" else "bad"
+                require(status == 200 and data["data"]["text"] == expected, f"web {mode} returned incorrect text")
+            status, body = request(base + "/api/sensitive/web/text", "POST", b"badge", {"Content-Type": "text/plain"})
+            require(status == 200 and json.loads(body)["data"]["text"] == "badge", f"web {mode} ignored whitelist")
+            record("sensitive-web-" + mode.lower())
+        finally:
+            stop_process(process)
 
 
 def test_disruptor(base, record):
@@ -1261,6 +1341,7 @@ def main():
                         test_ip2region(base, record)
                     elif args.starter == "sensitive-word":
                         test_sensitive_word(base, record)
+                        test_sensitive_word_modes(jar, module, temporary, environment, record)
                     elif args.starter == "disruptor":
                         test_disruptor(base, record)
                     elif args.starter == "sftp":

@@ -8,10 +8,10 @@
 
 | 顺序 | Starter | 状态 |
 | --- | --- | --- |
-| 1 | ip2region | 核心已测，API 及规范待整改 |
-| 2 | sensitive-word | 部分迁移，功能及规范待补齐 |
-| 3 | disruptor | 部分迁移，功能及规范待补齐 |
-| 4 | sftp | 部分迁移，多池及操作能力待补齐 |
+| 1 | ip2region | 已完成整改，见 REMEDIATION-BATCH-01.md |
+| 2 | sensitive-word | 2026-10-06 补齐并验收通过，见模块 MIGRATION.md |
+| 3 | disruptor | 已完成整改，见 REMEDIATION-BATCH-01.md |
+| 4 | sftp | 已完成整改，见 REMEDIATION-BATCH-01.md |
 | 5 | script | 部分迁移，多语言及管理能力待补齐 |
 | 6 | dynamic-threadpool | 部分迁移，动态队列、监控告警等待补齐 |
 | 7 | mqtt | 待迁移 |
@@ -31,8 +31,10 @@
 
 ## 敏感词
 
-140 项 Java 测试通过，真实 HTTP 4 项通过。验证白名单一致性、原文索引、
-Unicode、词库原子更新及文本长度上限。API 收敛及不再隐式修改 DTO 的变化见模块 README。
+首轮仅验证缩减范围的 140 项 Java 和 4 项 HTTP，不作为完整迁移依据。
+2026-10-06 已恢复原过滤器、分类、两种匹配、替换/高亮、词库加载、服务重载和注解处理，
+并补齐原未实现的 Web 能力。最新全量 268 项 Java 测试及 12 项敏感词真实检查通过，
+细项与兼容边界见 [功能对照](../sensitive-word-spring-boot-starter/MIGRATION.md)。
 
 ## Disruptor
 

@@ -3,11 +3,14 @@ package io.github.bytex0.sensitive;
 import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
@@ -19,9 +22,15 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  */
 class SensitiveWordTest {
 
+    /**
+     * 不依赖外部服务的配置测试入口。
+     */
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(SensitiveWordAutoConfiguration.class));
 
+    /**
+     * 默认装配、关闭、用户覆盖及词库缺失时的启动失败。
+     */
     @Test
     void configurationSupportsDisableOverrideAndMissingResourceFailure() {
         runner.run(context -> assertThat(context).hasSingleBean(SensitiveWordService.class));
@@ -34,6 +43,18 @@ class SensitiveWordTest {
                 .run(context -> assertThat(context).hasFailed());
     }
 
+    /**
+     * 纯文本使用方不需要 Servlet、Spring Web 或 Jackson。
+     */
+    @Test
+    void worksWithoutOptionalWebStack() {
+        runner.withClassLoader(new FilteredClassLoader("jakarta.servlet", "org.springframework.web", "tools.jackson"))
+                .run(context -> assertThat(context).hasNotFailed().hasSingleBean(SensitiveWordService.class));
+    }
+
+    /**
+     * 根包 API 保持原文内容与右开区间，不破坏已有消费者。
+     */
     @Test
     void whitelistAndOriginalIndicesAreConsistent() {
         SensitiveWordProperties properties = new SensitiveWordProperties();
@@ -47,6 +68,9 @@ class SensitiveWordTest {
         assertThat(service.contains("BADGE")).isFalse();
     }
 
+    /**
+     * Unicode 码点替换与土耳其语环境下的大小写处理保持一致。
+     */
     @Test
     void unicodeMappingDoesNotDependOnDefaultLocale() {
         Locale original = Locale.getDefault();
@@ -61,13 +85,19 @@ class SensitiveWordTest {
         }
     }
 
+    /**
+     * 并发新增同一词幂等，非法全量更新保留旧词库。
+     *
+     * @throws Exception 并发调用失败
+     */
     @Test
     void updatesAreAtomicAndInvalidUpdatesPreservePreviousDictionary() throws Exception {
         SensitiveWordService service = new SensitiveWordService(new SensitiveWordProperties());
         service.addWord("bad");
         assertThatIllegalArgumentException().isThrownBy(() -> service.replaceWords(Set.of(" ")));
         assertThat(service.contains("bad")).isTrue();
-        try (var executor = Executors.newFixedThreadPool(4)) {
+        try (var executor = new ThreadPoolExecutor(4, 4, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(128),
+                Thread.ofPlatform().daemon(true).factory(), new ThreadPoolExecutor.AbortPolicy())) {
             var futures = new ArrayList<Future<?>>();
             for (int index = 0; index < 100; index++) {
                 futures.add(executor.submit(() -> {
