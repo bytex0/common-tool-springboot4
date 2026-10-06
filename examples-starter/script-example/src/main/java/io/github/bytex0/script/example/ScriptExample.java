@@ -22,12 +22,38 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ScriptExample {
 
+    /**
+     * 自动装配的根包脚本体服务。
+     */
     private final ScriptService service;
 
-    public ScriptExample(ScriptService service) { this.service = service; }
+    /**
+     * 注入脚本服务。
+     *
+     * @param service 自动配置提供的服务
+     */
+    public ScriptExample(ScriptService service) {
+        this.service = service;
+    }
 
-    public static void main(String[] args) { SpringApplication.run(ScriptExample.class, args); }
+    /**
+     * 启动脚本示例。
+     *
+     * @param args 启动参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(ScriptExample.class, args);
+    }
 
+    /**
+     * 执行服务端固定脚本，保留已有脚本体接口。
+     *
+     * @param name 固定脚本名称，默认 sum
+     * @param a 第一个整数，默认 0
+     * @param b 第二个整数，默认 0
+     * @return 统一结果响应
+     * @throws Exception 编译、执行或超时失败
+     */
     @GetMapping("/api/script/run")
     Map<String, Object> run(@RequestParam(defaultValue = "sum") String name,
                            @RequestParam(defaultValue = "0") int a, @RequestParam(defaultValue = "0") int b) throws Exception {
@@ -40,11 +66,25 @@ public class ScriptExample {
         return Map.of("code", 0, "data", Map.of("value", service.execute("groovy", source, Map.of("a", a, "b", b))));
     }
 
+    /**
+     * 返回无效脚本名称错误，不输出源代码。
+     *
+     * @return 错误码
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    Map<String, Integer> invalid() { return Map.of("code", 400); }
+    Map<String, Integer> invalid() {
+        return Map.of("code", 400);
+    }
 
+    /**
+     * 返回脚本等待超时错误。
+     *
+     * @return 错误码
+     */
     @ExceptionHandler(TimeoutException.class)
     @ResponseStatus(HttpStatus.GATEWAY_TIMEOUT)
-    Map<String, Integer> timeout() { return Map.of("code", 504); }
+    Map<String, Integer> timeout() {
+        return Map.of("code", 504);
+    }
 }

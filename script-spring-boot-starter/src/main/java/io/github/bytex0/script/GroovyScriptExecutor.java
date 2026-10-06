@@ -18,11 +18,17 @@ import org.codehaus.groovy.runtime.InvokerHelper;
  */
 public class GroovyScriptExecutor implements ScriptExecutor {
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String language() {
         return "groovy";
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public Object execute(String source, Map<String, Object> parameters) throws Exception {
         CompilerConfiguration config = new CompilerConfiguration();

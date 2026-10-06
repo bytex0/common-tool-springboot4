@@ -20,6 +20,9 @@ import static org.mockito.Mockito.mock;
  */
 class ScriptTest {
 
+    /**
+     * 验证显式启用、用户服务覆盖和无效配置拒绝行为。
+     */
     @Test
     void configurationIsOptInAndOverridable() {
         ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -34,6 +37,11 @@ class ScriptTest {
         runner.withPropertyValues("script.enabled=true", "script.parallelism=0").run(context -> assertThat(context).hasFailed());
     }
 
+    /**
+     * 验证源码变化重新编译及并发绑定隔离。
+     *
+     * @throws Exception 执行或等待失败
+     */
     @Test
     void recompilesSourceAndIsolatesConcurrentBindings() throws Exception {
         try (ScriptService service = new ScriptService(List.of(new GroovyScriptExecutor()), 2, 8, 10000);
@@ -48,6 +56,11 @@ class ScriptTest {
         }
     }
 
+    /**
+     * 验证 Groovy 循环取消后工作线程仍能处理新调用。
+     *
+     * @throws Exception 执行失败
+     */
     @Test
     void interruptedLoopDoesNotPreventLaterWork() throws Exception {
         try (ScriptService service = new ScriptService(List.of(new GroovyScriptExecutor()), 1, 2, 3000)) {

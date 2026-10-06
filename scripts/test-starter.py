@@ -323,6 +323,18 @@ def test_script(base, record):
     require(api(base, "script/run", query={"a": 20, "b": 22})["value"] == 42, "script worker failed after timeout")
     api(base, "script/run", query={"name": "untrusted"}, expected=400)
     record("script-timeout-recovery-and-allowlist")
+    for language in ("GROOVY", "JAVASCRIPT", "LUA", "PYTHON", "JAVA"):
+        result = api(base, "script/typed/run", query={"type": language, "a": 2, "b": 3})
+        require(result["value"] == ("5" if language == "LUA" else 5), f"{language} method result incorrect")
+        record(f"script-typed-{language.lower()}-method")
+    require(api(base, "script/typed/cache") == {
+        "first": 1, "changed": 2, "refreshed": 3, "afterRemoval": 4
+    }, "script cache management returned stale source")
+    record("script-cache-source-refresh-remove")
+    require(api(base, "script/typed/validate")["valid"] is True, "valid script was rejected")
+    api(base, "script/typed/validate", query={"valid": "false"}, expected=400)
+    api(base, "script/typed/run", query={"type": "UNKNOWN"}, expected=400)
+    record("script-validation-and-unknown-language")
 
 
 def test_threadpool(base, record):
@@ -1473,9 +1485,10 @@ def main():
                 peer = start_sftp(jar, environment, temporary)
                 record("sftp-test-service-ready")
             log_path = Path(temporary) / "application.log"
+            jvm_options = [f"-Dpython.cachedir={Path(temporary) / 'jython-cache'}"] if args.starter == "script" else []
             with log_path.open("w") as log:
                 process = subprocess.Popen(
-                    ["java", "-jar", str(jar), "--server.port=0", "--server.address=127.0.0.1",
+                    ["java", *jvm_options, "-jar", str(jar), "--server.port=0", "--server.address=127.0.0.1",
                      "--spring.output.ansi.enabled=never"],
                     cwd=module, env=environment, stdout=log, stderr=subprocess.STDOUT,
                 )

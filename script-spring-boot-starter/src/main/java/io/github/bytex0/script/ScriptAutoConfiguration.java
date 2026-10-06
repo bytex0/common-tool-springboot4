@@ -17,12 +17,27 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnProperty(prefix = "script", name = "enabled", havingValue = "true")
 public class ScriptAutoConfiguration {
 
+    /**
+     * 创建已有脚本体语义的 Groovy 执行器。
+     *
+     * @return 默认执行器
+     */
     @Bean
     @ConditionalOnMissingBean(GroovyScriptExecutor.class)
+    @ConditionalOnProperty(prefix = "script.groovy", name = "enabled", havingValue = "true", matchIfMissing = true)
     public GroovyScriptExecutor groovyScriptExecutor() {
         return new GroovyScriptExecutor();
     }
 
+    /**
+     * 创建根包兼容服务，由 Spring 管理关闭。
+     *
+     * @param executors 脚本体执行器列表
+     * @param parallelism 并行线程数，默认 2，范围 1 到 32
+     * @param capacity 队列容量，默认 16，范围 1 到 1000
+     * @param timeout 包含排队和编译的超时毫秒，默认 5000，范围 1 到 120000
+     * @return 兼容服务
+     */
     @Bean
     @ConditionalOnMissingBean
     public ScriptService scriptService(List<ScriptExecutor> executors,

@@ -3,13 +3,16 @@
 ## 当前状态
 
 本次对照依据同级 `common-tool/script-spring-boot-starter` 实际源码、POM 和当前模块。
-当前仅提供 Groovy 脚本体执行及有界调度，**尚未完成原模块功能对齐**。
+已新增五语言执行器、类型化服务、有界租约缓存、配置对象及对应示例，
+**尚未完成全部兼容边界验收，不能标记完整迁移**。
 以下“待补齐”不代表删除授权；未完成实现和实际验证前不得标记迁移完成。
 
 原文件均相对于原模块的 `src/main/java/io/github/archer099/script/`。
 目标根包为 `io.github.bytex0.script`。
 
-## 逐项对照
+## 初始缺口对照
+
+以下表格保留实现前的审计快照，当前实现进展见后文。
 
 | 原文件及符号 | 当前实现位置 | 兼容策略及待补齐内容 | 验收要求 | 状态 |
 | --- | --- | --- | --- | --- |
@@ -61,5 +64,62 @@ python3 scripts/check-coordinates.py --built-jars
 git diff --check
 ```
 
-本对照阶段尚未新增上述能力，也尚未运行新增能力的真实 HTTP 验证。
-功能对齐、编码规范整改、扩展单元/接口测试、扩展真实联调四项均待完成。
+初始对照阶段未新增上述能力，后续实现及验证结果记录如下。
+
+## 当前实现与测试映射
+
+目标文件均位于本模块 `src/main/java/io/github/bytex0/script/`。
+
+| 原能力 | 当前实现 | 已新增回归测试 | 验收状态 |
+| --- | --- | --- | --- |
+| 类型枚举及三类异常的两种构造器 | `enums/ScriptType`、`exception/*Exception` | `CompiledExecutorTest` 的异常分类与原因保留 | 已实现，需结合整体迁移验收 |
+| 完整执行器契约 | `executor/ScriptExecutor` 的执行、方法、编译、编译后执行、校验及 release | `CompiledExecutorTest` | 已实现 |
+| Groovy 默认方法和指定方法 | `executor/GroovyScriptExecutor`，每次独立 Script/Binding | `groovyPreservesMethodAndBodySemantics`、`groovyCompiledBindingsAreIsolated` | 已实现 |
+| 原有 Boot 4 Groovy 脚本体入口 | 根包四类继续保留 | `ScriptTest`、`ScriptExampleTest#runsOnlyKnownScripts` | 保留 |
+| Java 动态编译及执行 | `executor/JavaExecutor`，语法树解析类名、独立目录和执行加载器 | `javaCompilesPackagedClassAndInvokesMethods`、`javaSameNameRevisionsRemainIndependent` | 已实现 |
+| JavaScript | `executor/JavaScriptExecutor`，独立 Context、指定方法、数据结果转换 | `PolyglotExecutorTest` 中 JavaScript 两项测试 | 已实现 |
+| Lua | `executor/LuaScriptExecutor`，独立 Globals、方法调用及指令中断检查 | `luaPreservesStringResultsAndSupportsMethods` | 已实现 |
+| Python | `executor/PythonScriptExecutor`，独立解释器，使用 exec 执行代码对象 | `pythonExecutesCodeInsteadOfCallingCodeObjects` | 已实现 |
+| 按 ID 执行、指定方法、刷新、删除、校验和动态注册 | `service/ScriptService` | `typedServiceSupportsCacheManagementAndRegistration` | 已实现 |
+| 缓存 get/put/remove/clear 及元数据 | `cache/ScriptCache`，put 接收所属执行器，执行通过租约获得资源 | `ScriptCacheTest` | 已实现安全替代入口，源码兼容变化见下文 |
+| 容量、源码变化、关闭及失效竞争 | `ScriptCache` 的容量限制、revision、引用计数及关闭 | `ScriptCacheTest` 的淘汰、关闭、删除竞争及语言配额测试 | 已实现 |
+| 原配置对象及语言开关 | `config/ScriptProperties`、`config/ScriptAutoConfiguration` | `ScriptAutoConfigurationTest` | 已实现；仍需完整核对旧配置命名组合 |
+| 普通调用和真实 Starter 集成 | `TypedScriptController` 的 run/cache/validate | `ScriptExampleTest`、`scripts/test-starter.py script` | 实际打包 HTTP 验证 11 项通过 |
+
+## 本轮实际验证
+
+- `python3 scripts/test-starter.py script` 完成全量 clean verify：334 项 Java 测试，
+  无失败、错误或跳过；18 个 Starter 坐标、BOM 与普通库 JAR 检查通过。
+- 真实 HTTP 共 11 项检查通过：既有脚本体运算、并发隔离、Groovy 超时恢复，
+  五语言指定方法、缓存源码变化与刷新删除、语法校验、未知类型拒绝以及启动停止。
+- 首次真实打包运行暴露 Jython 无法加载 site 标准库。已通过应用类加载器及
+  `__pyclasspath__/Lib` 修复，Python 示例使用 json 标准库验证，未通过禁用 site 绕过问题。
+- `python3 -m unittest discover -s scripts -p 'test_*.py'`：9 项通过。
+- Script 及示例已接入 Checkstyle，包含测试；本次涉及 Java 源码禁止用法扫描未发现
+  synchronized、@Synchronized、@Autowired 或通配符 import。静态检查不是全部阿里规范验收。
+- 自动化 Jython 缓存使用测试临时目录；已清理此前调试创建的仓库目录缓存。
+- 以上通过范围不覆盖下方剩余验收事项，不标记完整迁移；按用户本次明确要求提交并推送阶段成果。
+
+## 明确的兼容变化
+
+- 原静态全局服务注册表和缓存不再保留跨应用共享状态。服务在构造时完成注册，保留 `run` 启动入口。
+- 缓存改为应用实例拥有，`put` 需要传入创建执行器而非仅传类型，以便确定资源释放策略。
+  已缓存产物通过 `acquire` 获得租约，不能从元数据快照取出资源后任意关闭。
+  元数据改为不可变对象，不再通过 setter 修改缓存内部状态。
+- Groovy 原默认 `execute(Map)` 与 Boot 4 已有根包 `run()` 都保留，不能相互替代。
+- Java 使用 JDK 21，默认方法和指定方法都要求接收 Map。校验由真实编译判断语法，
+  不再使用旧版的签名文本字符串匹配；是否存在指定入口在执行时检查。
+- JavaScript 默认关闭宿主访问，显式设置 `script.java-script.allow-host-access=true` 可恢复原版互操作能力。
+  普通结果转换为 Java 数据，避免返回依赖已关闭 Context 的 Value。
+- Lua 保留字符串参数转换及字符串结果；默认移除系统、文件和 Java 互操作入口，
+  `script.lua.sandbox=false` 可恢复完整标准库，不代表脚本已被安全隔离。
+- Python 仍是 Python 2.7。原代码对象执行路径失效，本版通过 exec 执行，
+  脚本体读取 `result` 变量，指定方法返回其调用结果。
+- 编译期间 AST 转换、依赖解析或脚本语言扩展可能有副作用，校验不构成安全扫描。
+- 超时保证调用方等待有界，不保证强制终止 Java、JavaScript、Python 或不响应中断的第三方回调。
+  已中断的编译任务不发布新缓存；忽略或清除中断的受信代码仍需业务自行控制副作用。
+
+## 剩余验收
+
+缓存公开 API 迁移方式、全部旧配置命名组合、更多关闭/取消竞争和 Ivy 动态依赖解析
+仍需继续核对验证。上述内容未全部验收前，不将本模块标记为完整迁移；本次提交仅保存阶段成果。
