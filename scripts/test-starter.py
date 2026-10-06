@@ -952,6 +952,37 @@ def test_desensitize(base, record):
     nested = api(base, "desensitize/list")
     require(len(nested) == 2 and all(item == profile for item in nested), "nested collection masking failed")
     record("desensitize-nested-output")
+    expected = {**profile, "full_name": "张*丰"}
+    for engine in ("jackson", "fastjson", "fastjson2"):
+        require(api(base, "desensitize/engines/" + engine) == expected, f"{engine} model masking diverged")
+        require(api(base, "desensitize/records/" + engine) == {"phone": "138****8000", "ordinary": "public"},
+                f"{engine} record component masking failed")
+        status, body = request(base + "/api/desensitize/failure/" + engine)
+        require(status == 400 and b"must-not-return" not in body and json.loads(body)["code"] == 400,
+                f"{engine} failed open")
+        record(f"desensitize-{engine}-inherited-record-and-failure")
+    require(api(base, "desensitize/converted") == expected, "explicit conversion did not preserve masking")
+    record("desensitize-explicit-conversion")
+    expected_rules = {
+        "PHONE": "138****8000", "EMAIL": "a****@example.com", "NAME": "张*丰",
+        "ID_CARD": "1101**********1234", "BANK_CARD": "1234****3456",
+        "ADDRESS": "北京市朝阳区****8号", "PASSWORD": "******", "CAR_NUMBER": "京A****5",
+        "FIXED_PHONE": "010-****5678", "IPV4": "192.*.*.100:6379", "IPV6": "2001:****",
+        "PASSPORT": "E1****78", "MILITARY_ID": "军字****78", "CNAPS_CODE": "1234****9012",
+        "MASK_ALL": "******", "DOMAIN": "****.example.com:443",
+    }
+    require(api(base, "desensitize/rules") == expected_rules, "original/default rule outputs differ")
+    record("desensitize-complete-handler-rules")
+    require(api(base, "desensitize/range", query={"value": "𐐀AB", "start": 1, "token": "#"}) == {"value": "𐐀##"},
+            "Unicode masking split a code point")
+    api(base, "desensitize/range", query={"value": "ABC", "start": 2, "end": 1}, expected=400)
+    api(base, "desensitize/range", query={"value": "ABC", "start": 0, "token": ""}, expected=400)
+    record("desensitize-unicode-range-validation")
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        outputs = list(pool.map(lambda index: api(base, "desensitize/engines/" +
+                                                ("jackson", "fastjson", "fastjson2")[index % 3]), range(30)))
+    require(all(value == expected for value in outputs), "concurrent engines shared mutable rules")
+    record("desensitize-concurrent-engine-isolation")
 
 
 def test_i18n(base, record):

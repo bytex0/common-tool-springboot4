@@ -15,9 +15,23 @@ import java.util.List;
 @RestController
 public class MaskController {
 
+    /**
+     * 输出单个合成模型，由 Starter 的自动 Jackson 模块处理。
+     *
+     * @return 合成模型响应
+     */
     @GetMapping("/api/desensitize/profile")
-    public ApiResponse<MaskProfile> profile() { return ApiResponse.ok(new MaskProfile()); }
+    public ApiResponse<MaskProfile> profile() {
+        return ApiResponse.ok(new MaskProfile());
+    }
 
+    /**
+     * 输出嵌套集合，验证模块在集合元素中同样生效。
+     *
+     * @return 模型列表
+     */
     @GetMapping("/api/desensitize/list")
-    public ApiResponse<List<MaskProfile>> list() { return ApiResponse.ok(List.of(new MaskProfile(), new MaskProfile())); }
+    public ApiResponse<List<MaskProfile>> list() {
+        return ApiResponse.ok(List.of(new MaskProfile(), new MaskProfile()));
+    }
 }

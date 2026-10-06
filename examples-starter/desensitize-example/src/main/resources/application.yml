@@ -4,6 +4,10 @@ spring:
 server:
   address: 127.0.0.1
   port: ${SERVER_PORT:18086}
+desensitize:
+  enabled: true
+  enable-jackson: true
+  enable-fastjson: true
 management:
   endpoints:
     web:

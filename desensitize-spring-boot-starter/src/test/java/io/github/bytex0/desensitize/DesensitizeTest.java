@@ -14,7 +14,9 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +35,9 @@ class DesensitizeTest {
      */
     private final DesensitizeHandlerFactory factory = new DesensitizeHandlerFactory(new DefaultListableBeanFactory());
 
+    /**
+     * 默认装配、总开关关闭与用户工厂覆盖均按约定生效。
+     */
     @Test
     void shouldConfigureDisableAndOverride() {
         ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -44,6 +49,11 @@ class DesensitizeTest {
                 .run(context -> assertThat(context.getBean(DesensitizeHandlerFactory.class)).isSameAs(factory));
     }
 
+    /**
+     * 不同属性及并发序列化之间不共享脱敏规则，源对象保持原值。
+     *
+     * @throws Exception 线程等待或序列化失败时抛出
+     */
     @Test
     void shouldIsolateFieldsAndLeaveSourceUntouched() throws Exception {
         JsonMapper mapper = JsonMapper.builder().addModule(new DesensitizeModule(factory)).build();
@@ -53,14 +63,20 @@ class DesensitizeTest {
         assertThat(mapper.readTree(expected).path("ordinary").asString()).isEqualTo("ordinary");
         assertThat(sample.phone).isEqualTo("13800138000");
         assertThat(mapper.writeValueAsString("raw")).isEqualTo("\"raw\"");
-        try (var executor = Executors.newFixedThreadPool(4)) {
+        try (var executor = new ThreadPoolExecutor(4, 4, 0, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(32), new ThreadPoolExecutor.AbortPolicy())) {
             var tasks = executor.invokeAll(IntStream.range(0, 32)
                     .<Callable<String>>mapToObj(index -> () -> mapper.writeValueAsString(sample)).toList());
-            for (var task : tasks) { assertThat(task.get()).isEqualTo(expected); }
+            for (var task : tasks) {
+                assertThat(task.get()).isEqualTo(expected);
+            }
         }
         assertThat(mapper.writeValueAsString(List.of(sample))).doesNotContain("13800138000");
     }
 
+    /**
+     * 所有非自定义策略都有默认处理器，畸形值不能返回敏感原文。
+     */
     @Test
     void shouldCoverPreviouslyMissingTypesAndMalformedValues() {
         for (DesensitizeType type : DesensitizeType.values()) {
@@ -72,12 +88,18 @@ class DesensitizeTest {
         assertThat(factory.mask("bad-ip", DesensitizeType.IPV4)).isEqualTo("******");
     }
 
+    /**
+     * 范围使用码点并正确覆盖末字符，无效区间明确失败。
+     */
     @Test
     void shouldMaskUnicodeCodePointsAndIncludeLastCharacter() {
         assertThat(factory.maskRange("\uD801\uDC00AB", 1, -1, "#")).isEqualTo("\uD801\uDC00##");
         assertThatThrownBy(() -> factory.maskRange("ABC", 2, 1, "*")).isInstanceOf(IllegalArgumentException.class);
     }
 
+    /**
+     * 不支持的数字字段标注必须失败，不能默默漏脱敏。
+     */
     @Test
     void shouldRejectNonStringFieldsRatherThanExposePlaintext() {
         JsonMapper mapper = JsonMapper.builder().addModule(new DesensitizeModule(factory)).build();

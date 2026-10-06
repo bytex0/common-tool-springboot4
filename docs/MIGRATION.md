@@ -22,7 +22,11 @@
 并完成 Jackson 3/Protobuf 适配和关闭竞争整改。全量 285 项 Java 测试、多 Redis 32 项真实检查，
 锁/限流/幂等额外 37 项真实回归、9 项 Python 测试及坐标制品校验通过。
 详见 [多 Redis 功能对照](../multi-redis-spring-boot-starter/MIGRATION.md)。
-剩余待补齐模块为 common-tool、desensitize、excel、script、dynamic-threadpool。
+2026-10-06 脱敏已恢复原处理器、工厂、上下文序列化器和 Fastjson 接入，
+补充新策略及三引擎错误保护。全量 296 项 Java 测试、脱敏 12 项真实检查和 Excel 既有能力
+6 项真实回归通过，9 项 Python 测试与坐标制品校验通过。
+具体边界见 [脱敏功能对照](../desensitize-spring-boot-starter/MIGRATION.md)。
+剩余待补齐模块为 common-tool、excel、script、dynamic-threadpool。
 
 ## 原项目观察
 

@@ -15,8 +15,20 @@ public class CustomMaskHandler implements DesensitizeHandler {
      */
     private final String replacement;
 
-    public CustomMaskHandler(String replacement) { this.replacement = replacement; }
+    /**
+     * 通过构造器接收业务策略参数。
+     *
+     * @param replacement 固定替换文本
+     */
+    public CustomMaskHandler(String replacement) {
+        this.replacement = replacement;
+    }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public String desensitize(String value) { return replacement; }
+    public String desensitize(String value) {
+        return replacement;
+    }
 }

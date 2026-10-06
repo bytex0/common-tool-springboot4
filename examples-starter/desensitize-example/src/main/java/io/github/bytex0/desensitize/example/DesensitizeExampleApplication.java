@@ -12,8 +12,23 @@ import org.springframework.context.annotation.Bean;
  */
 @SpringBootApplication
 public class DesensitizeExampleApplication {
-    public static void main(String[] args) { SpringApplication.run(DesensitizeExampleApplication.class, args); }
 
+    /**
+     * 启动真实集成脱敏 Starter 的示例。
+     *
+     * @param args 启动参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(DesensitizeExampleApplication.class, args);
+    }
+
+    /**
+     * 注册有构造参数的自定义处理器，验证序列化器优先使用容器 Bean。
+     *
+     * @return 托管处理器
+     */
     @Bean
-    CustomMaskHandler customMaskHandler() { return new CustomMaskHandler("managed"); }
+    CustomMaskHandler customMaskHandler() {
+        return new CustomMaskHandler("managed");
+    }
 }
