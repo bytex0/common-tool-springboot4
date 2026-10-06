@@ -11,5 +11,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class MultiRedisExampleApplication {
-    public static void main(String[] args) { SpringApplication.run(MultiRedisExampleApplication.class, args); }
+
+    /**
+     * 启动真实依赖多 Redis Starter 的示例。
+     *
+     * @param args 启动参数
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(MultiRedisExampleApplication.class, args);
+    }
 }

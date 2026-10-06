@@ -660,7 +660,9 @@ def test_lock(base, peer, record):
 
 
 def test_multi_redis(base, record):
-    require(set(api(base, "redis/names")) == {"main", "secondary", "cluster"}, "named clients missing")
+    require(set(api(base, "redis/names")) == {
+        "main", "secondary", "cluster", "replica", "kryo", "kryo5", "protobuf", "json-typed"},
+            "named clients missing")
     key = "test-" + uuid.uuid4().hex
     data = {"text": "中文", "count": 1, "@class": "java.lang.Runtime"}
     api(base, "redis/value", "PUT", "main-value", {"client": "main", "key": key})
@@ -682,6 +684,74 @@ def test_multi_redis(base, record):
     api(base, "redis/value", "DELETE", query={"client": "secondary", "key": key})
     require(not api(base, "redis/value", query={"client": "secondary", "key": key})["present"], "Redis deletion failed")
     record("redis-ttl-validation-and-cleanup")
+    for codec in ("kryo", "kryo5"):
+        try:
+            api(base, "redis/value", "PUT", "中文-codec", {"client": codec, "key": key})
+            require(api(base, "redis/value", query={"client": codec, "key": key})["value"] == "中文-codec",
+                    f"{codec} wire roundtrip failed")
+        finally:
+            api(base, "redis/value", "DELETE", query={"client": codec, "key": key})
+        record(f"redis-{codec}-real-codec")
+    for codec in ("json-typed", "kryo", "kryo5", "protobuf"):
+        result = api(base, "redis/structures/typed", "POST",
+                     query={"client": codec, "run": str(uuid.uuid4())})
+        require(result == {"bucket": "中文-typed", "hash": "中文-typed"}, "typed Bucket/Hash roundtrip failed")
+        record(f"redis-{codec}-typed-bucket-hash")
+    expected = {
+        "strings": {"set": True, "plain": "first", "codec": "codec", "ttl": True, "codecTtl": "codec-ttl",
+                    "nxFirst": True, "nxSecond": False, "json": {"name": "中文", "count": 3},
+                    "missing": None, "final": "final"},
+        "hash": {"count": 3, "field": "中文", "longIncrement": 2, "doubleIncrement": 2.5,
+                 "numberIncrement": 4, "removed": 2, "all": {"name": "中文", "number": "4"}},
+        "collections": {"contains": True, "popped": "a", "emptyPop": None, "list": ["a", "b", "a", "c"],
+                        "range": ["b", "a", "c"], "listContains": True, "remaining": ["b", "a"]},
+        "sorted": {"added": True, "batchAdded": 2, "ascending": ["a", "b"], "score": 2, "rank": 0,
+                   "descending": ["c", "b", "a"], "scores": {"a": 1, "b": 2, "c": 3}, "count": 2,
+                   "size": 3, "increment": 5, "removed": True, "remaining": ["a"]},
+        "queues": {"last": "a", "contains": True, "first": "a", "remaining": ["b", "c"], "offered": True,
+                   "taken": "job", "polled": "timed", "timeout": None},
+        "geo": {"added": 1, "batchAdded": 1, "removed": True, "batchRemoved": True},
+        "probabilistic": {"bloomCreated": True, "bloomRepeated": False, "bloomAdded": True, "bloomContains": True,
+                          "bloomCount": 1, "bloomRate": 0.01, "bloomDeleted": True, "oldBit": False,
+                          "bit": True, "bitCount": 2, "and": 1, "or": 2, "xor": 1, "cleared": 0,
+                          "pfadd": 1, "pfbatch": 2, "pfcount": 2, "pfunion": 3, "pfempty": 0, "pfmerge": 3,
+                          "pfdeleted": True},
+        "counters": {"first": 1, "second": 5, "decrement": 4, "double": 1.25, "large": 9007199254740993,
+                     "exists": True, "expired": True, "ttl": True, "deleted": True, "missingDelete": False,
+                     "missingExpire": False, "missingTtl": -2, "batchDeleted": True},
+        "locks": {"normal": True, "fair": True, "read": True, "write": True},
+    }
+    for client in ("main", "cluster"):
+        for group, values in expected.items():
+            result = api(base, "redis/structures/" + group, "POST",
+                         query={"client": client, "run": str(uuid.uuid4())})
+            require(all(name in result and result[name] == value for name, value in values.items()),
+                    f"Redis {client}/{group} business result mismatch: {result}")
+            require(result["replicationFailures"] == 0, "backup replication failed")
+            if client == "main":
+                require(result["mirroredExists"], "backup data existence diverged")
+                if group == "strings":
+                    require(result["mirroredValue"] == "final", "backup write order diverged")
+                elif group == "queues":
+                    require(result["mirroredQueue"] == ["b", "c"], "backup duplicate deque removal diverged")
+                elif group == "hash":
+                    require(result["mirroredHash"] == {"name": "中文", "number": "4"}, "backup hash diverged")
+            if group == "collections":
+                require(set(result["members"]) == {"a", "b", "c", "d", "e"}
+                        and result["random"] in result["members"] and set(result["batchPop"]) == {"x", "y"},
+                        "set membership/random behavior mismatch")
+            elif group == "geo":
+                require(165 < result["distance"] < 167 and abs(result["position"][0] - 13.361389) < 0.00001,
+                        "GEO distance/position mismatch")
+                require(set(result["search"]) == {"Palermo", "Catania"}
+                        and set(result["positions"]) == {"Palermo", "Catania"}
+                        and set(result["distances"]) == {"Palermo", "Catania"}, "GEO search results missing")
+            elif group == "probabilistic":
+                require(result["bloomSize"] > 100, "Bloom capacity incorrect")
+            record(f"redis-{client}-{group}-tools-and-cleanup")
+    api(base, "redis/structures/strings", "POST", query={"run": "not-a-uuid"}, expected=400)
+    api(base, "redis/structures/unknown", "POST", query={"run": str(uuid.uuid4())}, expected=400)
+    record("redis-scenario-validation")
 
 
 def redis_ports(count):

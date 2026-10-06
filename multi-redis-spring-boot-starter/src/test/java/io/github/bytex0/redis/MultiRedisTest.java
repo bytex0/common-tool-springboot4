@@ -11,10 +11,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -26,6 +30,9 @@ import static org.mockito.Mockito.verify;
  */
 class MultiRedisTest {
 
+    /**
+     * 默认不开连接，显式开启后由管理器且仅由管理器释放默认客户端。
+     */
     @Test
     void shouldConfigureOnlyWhenEnabledAndShutdownOnce() {
         ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -40,6 +47,9 @@ class MultiRedisTest {
         verify(client, times(1)).shutdown();
     }
 
+    /**
+     * 任一配置非法时不能已经创建其他连接。
+     */
     @Test
     void shouldValidateAllConnectionsBeforeOpeningAny() {
         MultiRedisProperties properties = properties();
@@ -54,6 +64,45 @@ class MultiRedisTest {
         assertThat(created).hasValue(0);
     }
 
+    /**
+     * 工厂返回同一实例时，多个路由仍只能释放一次该资源。
+     */
+    @Test
+    void shouldCloseSharedClientOnlyOnce() {
+        MultiRedisProperties properties = properties();
+        properties.getClients().put("second", properties.getClients().get("main"));
+        RedissonClient client = mock(RedissonClient.class);
+        try (MultiRedisManager ignored = new MultiRedisManager(properties, config -> client)) {
+            assertThat(ignored.names()).hasSize(2);
+        }
+        verify(client, times(1)).shutdown();
+    }
+
+    /**
+     * SDK 关闭回调中另一线程重入 close 不能被管理器持锁阻塞。
+     *
+     * @throws Exception 等待异步回调失败时抛出
+     */
+    @Test
+    void shouldNotHoldMonitorWhileShuttingDown() throws Exception {
+        RedissonClient client = mock(RedissonClient.class);
+        MultiRedisManager manager = new MultiRedisManager(properties(), config -> client);
+        CountDownLatch returned = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            CompletableFuture.runAsync(() -> {
+                manager.close();
+                returned.countDown();
+            });
+            assertThat(returned.await(1, TimeUnit.SECONDS)).isTrue();
+            return null;
+        }).when(client).shutdown();
+        manager.close();
+        verify(client, times(1)).shutdown();
+    }
+
+    /**
+     * 后续工厂创建失败时释放前面已创建的实例。
+     */
     @Test
     void shouldCleanAlreadyCreatedClientsWhenLaterCreationFails() {
         MultiRedisProperties properties = properties();
@@ -63,12 +112,17 @@ class MultiRedisTest {
         RedissonClient first = mock(RedissonClient.class);
         AtomicInteger count = new AtomicInteger();
         assertThatThrownBy(() -> new MultiRedisManager(properties, config -> {
-            if (count.getAndIncrement() == 0) { return first; }
+            if (count.getAndIncrement() == 0) {
+                return first;
+            }
             throw new IllegalStateException("connection failed");
         })).isInstanceOf(IllegalStateException.class);
         verify(first).shutdown();
     }
 
+    /**
+     * 单机和集群配置同时生效，未知名称与关闭后的访问必须失败。
+     */
     @Test
     void shouldBuildSingleAndClusterConfigurationsAndRejectUnknownNames() {
         MultiRedisProperties properties = properties();
@@ -90,6 +144,11 @@ class MultiRedisTest {
         assertThatThrownBy(manager::primary).isInstanceOf(IllegalStateException.class);
     }
 
+    /**
+     * 默认 JSON 不根据数据中的类名创建任意运行时类型。
+     *
+     * @throws Exception 编解码失败时抛出
+     */
     @Test
     void shouldDecodeJsonAsDataWithoutPolymorphicInstantiation() throws Exception {
         TypedJsonJackson3Codec codec = new TypedJsonJackson3Codec(Object.class);
@@ -102,6 +161,11 @@ class MultiRedisTest {
         }
     }
 
+    /**
+     * 创建不联网的最小连接参数。
+     *
+     * @return 测试配置
+     */
     private MultiRedisProperties properties() {
         MultiRedisProperties properties = new MultiRedisProperties();
         MultiRedisProperties.Connection main = new MultiRedisProperties.Connection();

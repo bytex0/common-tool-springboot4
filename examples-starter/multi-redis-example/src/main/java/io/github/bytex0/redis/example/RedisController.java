@@ -33,11 +33,34 @@ public class RedisController {
      */
     private final MultiRedisManager manager;
 
-    public RedisController(MultiRedisManager manager) { this.manager = manager; }
+    /**
+     * 注入实际命名连接管理器。
+     *
+     * @param manager 管理器
+     */
+    public RedisController(MultiRedisManager manager) {
+        this.manager = manager;
+    }
 
+    /**
+     * 查询启用的连接名称。
+     *
+     * @return 名称集合
+     */
     @GetMapping("/names")
-    public ApiResponse<Set<String>> names() { return ApiResponse.ok(manager.names()); }
+    public ApiResponse<Set<String>> names() {
+        return ApiResponse.ok(manager.names());
+    }
 
+    /**
+     * 在指定客户端写入短期测试数据。
+     *
+     * @param client 客户端名称
+     * @param key 测试键
+     * @param ttl 有效秒数，范围 1 至 60
+     * @param value JSON 请求值
+     * @return 成功响应
+     */
     @PutMapping("/value")
     public ApiResponse<Void> put(@RequestParam String client, @RequestParam String key,
                                  @RequestParam(defaultValue = "30") long ttl, @RequestBody Object value) {
@@ -47,6 +70,13 @@ public class RedisController {
         return ApiResponse.ok();
     }
 
+    /**
+     * 读取指定连接的数据，不回退到默认连接。
+     *
+     * @param client 连接名称
+     * @param key 测试键
+     * @return 值及存在标志
+     */
     @GetMapping("/value")
     public ApiResponse<Map<String, Object>> get(@RequestParam String client, @RequestParam String key) {
         Object value = manager.get(client).getBucket(key).get();
@@ -56,12 +86,24 @@ public class RedisController {
         return ApiResponse.ok(result);
     }
 
+    /**
+     * 删除调用者的测试键。
+     *
+     * @param client 连接名称
+     * @param key 测试键
+     * @return 成功响应
+     */
     @DeleteMapping("/value")
     public ApiResponse<Void> delete(@RequestParam String client, @RequestParam String key) {
         manager.get(client).getBucket(key).delete();
         return ApiResponse.ok();
     }
 
+    /**
+     * 返回不包含连接信息的参数错误。
+     *
+     * @return 错误响应
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> invalid() {
         return ResponseEntity.badRequest().body(ApiResponse.failOfMessage("Redis参数不合法", 400));

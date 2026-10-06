@@ -7,6 +7,7 @@ server:
 multi-redis:
   enabled: true
   primary: main
+  backup: replica
   clients:
     main:
       address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
@@ -14,6 +15,32 @@ multi-redis:
       address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
       database: 1
       codec: JSON
+    replica:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+      database: 2
+      location: B
+    json-typed:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+      database: 6
+      codec: JSON
+      value-type: io.github.bytex0.redis.example.RedisWireValue
+    kryo:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+      database: 3
+      codec: KRYO
+      allowed-types:
+        - io.github.bytex0.redis.example.RedisWireValue
+    kryo5:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+      database: 4
+      codec: KRYO5
+      allowed-types:
+        - io.github.bytex0.redis.example.RedisWireValue
+    protobuf:
+      address: ${TEST_REDIS_ADDRESS:redis://127.0.0.1:6379}
+      database: 5
+      codec: PROTOBUF
+      value-type: io.github.bytex0.redis.example.RedisWireValue
     cluster:
       enabled: ${TEST_REDIS_CLUSTER_ENABLED:false}
       mode: CLUSTER

@@ -35,14 +35,31 @@ class RedisControllerTest {
      */
     private final MockMvc mvc;
 
-    RedisControllerTest(MockMvc mvc) { this.mvc = mvc; }
+    /**
+     * 注入 MVC 测试客户端。
+     *
+     * @param mvc 测试客户端
+     */
+    RedisControllerTest(MockMvc mvc) {
+        this.mvc = mvc;
+    }
 
+    /**
+     * 配置名称作为 JSON 数据返回。
+     *
+     * @throws Exception MVC 请求失败时抛出
+     */
     @Test
     void shouldListConfiguredNames() throws Exception {
         when(manager.names()).thenReturn(Set.of("main"));
         mvc.perform(get("/api/redis/names")).andExpect(status().isOk()).andExpect(jsonPath("$.data[0]").value("main"));
     }
 
+    /**
+     * 未知客户端名称映射为明确的参数错误。
+     *
+     * @throws Exception MVC 请求失败时抛出
+     */
     @Test
     void shouldRejectUnknownClient() throws Exception {
         when(manager.get("unknown")).thenThrow(new IllegalArgumentException("unknown"));

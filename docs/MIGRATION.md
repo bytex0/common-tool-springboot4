@@ -16,7 +16,13 @@
 修复词库快照、白名单、索引与资源加载，并补上原未实现的 Web 处理。
 全量 268 项 Java 测试、敏感词 12 项真实接口/生命周期检查、9 项 Python 测试通过。
 兼容边界与分项验收见 [敏感词功能对照](../sensitive-word-spring-boot-starter/MIGRATION.md)。
-剩余待补齐模块为 common-tool、multi-redis、desensitize、excel、script、dynamic-threadpool。
+该阶段之后继续补齐的模块进度如下。
+
+2026-10-06 多 Redis 已补齐原工具方法、重载、旧配置、位置路由和有界异步双写，
+并完成 Jackson 3/Protobuf 适配和关闭竞争整改。全量 285 项 Java 测试、多 Redis 32 项真实检查，
+锁/限流/幂等额外 37 项真实回归、9 项 Python 测试及坐标制品校验通过。
+详见 [多 Redis 功能对照](../multi-redis-spring-boot-starter/MIGRATION.md)。
+剩余待补齐模块为 common-tool、desensitize、excel、script、dynamic-threadpool。
 
 ## 原项目观察
 

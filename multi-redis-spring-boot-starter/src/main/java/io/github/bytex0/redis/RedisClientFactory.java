@@ -11,5 +11,12 @@ import org.redisson.config.Config;
  */
 @FunctionalInterface
 public interface RedisClientFactory {
+
+    /**
+     * 根据已预校验配置创建客户端，返回的实例所有权移交管理器。
+     *
+     * @param config SDK 连接配置
+     * @return 非空客户端
+     */
     RedissonClient create(Config config);
 }
