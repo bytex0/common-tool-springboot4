@@ -23,6 +23,9 @@ class ApiResponseTest {
      */
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
+    /**
+     * 验证空成功响应的默认字段。
+     */
     @Test
     void shouldCreateEmptySuccess() {
         ApiResponse<Void> response = ApiResponse.ok();
@@ -33,6 +36,9 @@ class ApiResponseTest {
         assertThat(response.getRequestId()).isNull();
     }
 
+    /**
+     * 验证数据响应自动生成请求标识。
+     */
     @Test
     void shouldGenerateRequestIdForDataResponse() {
         ApiResponse<Map<String, String>> response = ApiResponse.ok(Map.of("name", "demo"));
@@ -41,6 +47,9 @@ class ApiResponseTest {
         assertThat(response.isSuccess()).isTrue();
     }
 
+    /**
+     * 验证单个字符串仍表示请求标识。
+     */
     @Test
     void shouldPreserveSingleStringAsRequestId() {
         ApiResponse<String> response = ApiResponse.ok("request-1");
@@ -49,6 +58,9 @@ class ApiResponseTest {
         assertThat(ApiResponse.ok("request-1", "payload").getData()).isEqualTo("payload");
     }
 
+    /**
+     * 验证全部成功工厂重载。
+     */
     @Test
     void shouldPreserveSuccessOverloads() {
         assertThat(ApiResponse.okOfMessage("done").getMessage()).isEqualTo("done");
@@ -61,6 +73,9 @@ class ApiResponseTest {
         assertThat(ApiResponse.ok("request-1", 123L, 42, "done").getMessage()).isEqualTo("done");
     }
 
+    /**
+     * 验证全部失败工厂重载。
+     */
     @Test
     void shouldPreserveFailureOverloads() {
         assertThat(ApiResponse.fail().getCode()).isEqualTo(500);
@@ -79,6 +94,9 @@ class ApiResponseTest {
         assertThat(ApiResponse.fail("request-1", 123L, 403, "denied").getMessage()).isEqualTo("denied");
     }
 
+    /**
+     * 验证空响应的成功判断结果。
+     */
     @Test
     void shouldHandleNullInSuccessCheck() {
         assertThat(ApiResponse.isSuccess(null)).isFalse();
@@ -86,6 +104,9 @@ class ApiResponseTest {
         assertThat(ApiResponse.isSuccess(ApiResponse.ok())).isTrue();
     }
 
+    /**
+     * 验证 Jackson 3 保留原字段协议。
+     */
     @Test
     void shouldPreserveJsonFieldNamesWithJackson3() {
         ApiResponse<Map<String, String>> response = ApiResponse.ok("request-1", 123L, Map.of("name", "demo"));
@@ -98,6 +119,9 @@ class ApiResponseTest {
         assertThat(json.has("requestId")).isFalse();
     }
 
+    /**
+     * 验证空值字段不写入 JSON。
+     */
     @Test
     void shouldOmitNullJsonFields() {
         JsonNode json = jsonMapper.readTree(jsonMapper.writeValueAsString(ApiResponse.ok()));
@@ -105,6 +129,9 @@ class ApiResponseTest {
         assertThat(json.has("data")).isFalse();
     }
 
+    /**
+     * 验证泛型响应反序列化。
+     */
     @Test
     void shouldDeserializeGenericDataWithJackson3() {
         String json = """

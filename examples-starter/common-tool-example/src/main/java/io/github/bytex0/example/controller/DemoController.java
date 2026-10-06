@@ -23,10 +23,20 @@ public class DemoController {
      */
     private final Environment environment;
 
+    /**
+     * 注入当前应用环境。
+     *
+     * @param environment 应用环境
+     */
     public DemoController(Environment environment) {
         this.environment = environment;
     }
 
+    /**
+     * 返回基础响应模型，验证 Starter 已正确引入。
+     *
+     * @return 示例状态
+     */
     @GetMapping("/ping")
     public ApiResponse<Map<String, String>> ping() {
         return ApiResponse.ok(Map.of(

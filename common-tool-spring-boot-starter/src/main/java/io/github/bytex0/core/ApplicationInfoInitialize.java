@@ -24,10 +24,20 @@ public class ApplicationInfoInitialize implements ApplicationListener<Applicatio
      */
     private final Environment environment;
 
+    /**
+     * 绑定当前应用环境，避免跨上下文重复输出。
+     *
+     * @param environment 当前环境
+     */
     public ApplicationInfoInitialize(Environment environment) {
         this.environment = environment;
     }
 
+    /**
+     * 仅输出所属环境的应用名称和配置，不输出中间件地址或凭据。
+     *
+     * @param event 应用就绪事件
+     */
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
         if (event.getApplicationContext().getEnvironment() != environment) {

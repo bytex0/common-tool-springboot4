@@ -12,6 +12,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class CommonToolExampleApplication {
 
+    /**
+     * 启动基础能力示例。
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(CommonToolExampleApplication.class, args);
     }

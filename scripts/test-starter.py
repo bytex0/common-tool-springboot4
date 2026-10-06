@@ -119,6 +119,32 @@ def check_download(base, key, expected_content):
 def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
+    with ThreadPoolExecutor(max_workers=4) as clients:
+        batches = list(clients.map(lambda _: api(base, "common/ids", query={"count": 100}), range(4)))
+    ids = [value for batch in batches for value in batch]
+    require(len(ids) == 400 and len(set(ids)) == 400, "ID generation returned duplicates")
+    require(all(isinstance(value, str) and value.isdigit() for value in ids), "IDs must preserve numeric precision")
+    api(base, "common/ids", query={"count": 0}, expected=400)
+    record("common-concurrent-ids-and-validation")
+    require(api(base, "common/trace") == {"before": "request|event", "after": "request|event"},
+            "MDC was not restored or separator was ignored")
+    record("common-trace-and-mdc-restoration")
+    require(api(base, "common/tools") == {"selected": "only", "shard": [1, 3], "formatted": "a/b"},
+            "common tools returned unexpected results")
+    record("common-balancer-shard-template")
+    require(api(base, "common/transaction", "POST") == {"rows": 1, "callbacks": 2},
+            "committed transaction or callbacks did not complete")
+    require(api(base, "common/transaction", "POST", query={"rollback": "true"}) == {"rows": 0, "callbacks": 0},
+            "rollback persisted data or ran commit callbacks")
+    record("common-real-jdbc-commit-and-rollback")
+    require(api(base, "common/validate", "POST", {"name": "test", "age": 1}) == {"name": "test", "age": 1},
+            "valid input was not accepted")
+    api(base, "common/validate", "POST", {"name": "", "age": -1}, expected=400)
+    record("common-bean-validation")
+    require(api(base, "common/parallel", "POST") == 10, "parallel tasks did not finish")
+    api(base, "common/parallel", "POST", query={"fail": "true"}, expected=400)
+    require(api(base, "common/parallel", "POST") == 10, "parallel executor failed after consumer error")
+    record("common-parallel-failure-and-recovery")
     record("common-response")
 
 
