@@ -11,6 +11,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class ExcelExampleApplication {
+
+    /**
+     * 启动真实依赖 Excel Starter 的示例。
+     *
+     * @param args 启动参数
+     */
     public static void main(String[] args) {
         SpringApplication.run(ExcelExampleApplication.class, args);
     }

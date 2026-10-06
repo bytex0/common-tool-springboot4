@@ -26,7 +26,10 @@
 补充新策略及三引擎错误保护。全量 296 项 Java 测试、脱敏 12 项真实检查和 Excel 既有能力
 6 项真实回归通过，9 项 Python 测试与坐标制品校验通过。
 具体边界见 [脱敏功能对照](../desensitize-spring-boot-starter/MIGRATION.md)。
-剩余待补齐模块为 common-tool、excel、script、dynamic-threadpool。
+2026-10-06 Excel 已恢复原上下文、普通/多 Sheet/ZIP 处理器、静态工具和有界并发导入，
+实现原事务开关并完善进度、取消和流所有权。全量 311 项 Java 测试、Excel 14 项真实检查、
+9 项 Python 测试及坐标制品校验通过，详见 [Excel 功能对照](../excel-spring-boot-starter/MIGRATION.md)。
+剩余待补齐模块为 common-tool、script、dynamic-threadpool。
 
 ## 原项目观察
 

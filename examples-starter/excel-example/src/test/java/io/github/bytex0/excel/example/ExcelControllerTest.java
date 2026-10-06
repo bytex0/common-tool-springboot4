@@ -28,8 +28,20 @@ class ExcelControllerTest {
      */
     private final MockMvc mvc;
 
-    ExcelControllerTest(MockMvc mvc) { this.mvc = mvc; }
+    /**
+     * 注入实际 MVC 客户端。
+     *
+     * @param mvc 测试入口
+     */
+    ExcelControllerTest(MockMvc mvc) {
+        this.mvc = mvc;
+    }
 
+    /**
+     * 响应工作簿可以再次上传并按顺序读取。
+     *
+     * @throws Exception MVC 请求失败时抛出
+     */
     @Test
     void shouldRoundTripResponseWorkbook() throws Exception {
         byte[] data = mvc.perform(get("/api/excel/export").param("count", "4"))
@@ -40,6 +52,11 @@ class ExcelControllerTest {
                 .andExpect(jsonPath("$.data.ids[3]").value(4));
     }
 
+    /**
+     * 非法行上限不能开始写入响应工作簿。
+     *
+     * @throws Exception MVC 请求失败时抛出
+     */
     @Test
     void shouldRejectInvalidRowLimit() throws Exception {
         mvc.perform(get("/api/excel/export").param("rowsPerSheet", "0"))
@@ -48,6 +65,11 @@ class ExcelControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * 文本数据不能被当作有效空 Excel。
+     *
+     * @throws Exception MVC 请求失败时抛出
+     */
     @Test
     void shouldRejectMalformedWorkbook() throws Exception {
         mvc.perform(multipart("/api/excel/import")

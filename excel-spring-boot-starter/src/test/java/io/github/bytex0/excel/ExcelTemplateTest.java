@@ -33,6 +33,9 @@ class ExcelTemplateTest {
      */
     private final ExcelTemplate template = new ExcelTemplate();
 
+    /**
+     * 默认模板、关闭开关及用户覆盖保持有效。
+     */
     @Test
     void shouldConfigureDisableAndOverride() {
         ApplicationContextRunner runner = new ApplicationContextRunner()
@@ -43,6 +46,11 @@ class ExcelTemplateTest {
                 assertThat(context.getBean(ExcelTemplate.class)).isSameAs(template));
     }
 
+    /**
+     * 不整除批次在多个 Sheet 间拆分时不能丢失或重复行。
+     *
+     * @throws Exception 工作簿解析失败时抛出
+     */
     @Test
     void shouldSplitInsideBatchesWithoutLostOrDuplicatedRows() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -61,6 +69,11 @@ class ExcelTemplateTest {
         assertThat(ids).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
     }
 
+    /**
+     * 空数据仍生成有效工作簿，ZIP 拆分保持行数上限。
+     *
+     * @throws Exception 工作簿或 ZIP 解析失败时抛出
+     */
     @Test
     void shouldProduceValidEmptyWorkbookAndZip() throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -83,6 +96,9 @@ class ExcelTemplateTest {
         assertThat(counts).containsExactly(5, 5, 1);
     }
 
+    /**
+     * 数据来源失败和非法上限须立即传播，不挂起等待。
+     */
     @Test
     void shouldPropagateProducerFailureWithoutQueueDeadlock() {
         assertTimeoutPreemptively(Duration.ofSeconds(5), () ->
@@ -93,20 +109,33 @@ class ExcelTemplateTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    /**
+     * 继续模式统计整个失败批次，默认模式遇错终止。
+     */
     @Test
     void shouldCountFailedBatchesAndStopByDefault() {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         template.write(output, Row.class, "Data", rows(4), 10);
         ExcelTemplate.ImportResult result = template.read(new ByteArrayInputStream(output.toByteArray()),
-                Row.class, 0, 2, batch -> { throw new IllegalStateException("consumer failed"); }, true);
+                Row.class, 0, 2, batch -> {
+                    throw new IllegalStateException("consumer failed");
+                }, true);
         assertThat(result.total()).isEqualTo(4);
         assertThat(result.failed()).isEqualTo(4);
         assertTimeoutPreemptively(Duration.ofSeconds(5), () ->
                 assertThatThrownBy(() -> template.read(new ByteArrayInputStream(output.toByteArray()),
-                        Row.class, 0, 2, batch -> { throw new IllegalStateException("consumer failed"); }, false))
+                        Row.class, 0, 2, batch -> {
+                            throw new IllegalStateException("consumer failed");
+                        }, false))
                         .isInstanceOf(RuntimeException.class));
     }
 
+    /**
+     * 按四行批次提供合成数据。
+     *
+     * @param count 总行数
+     * @return 顺序数据来源
+     */
     private Supplier<List<Row>> rows(int count) {
         AtomicInteger current = new AtomicInteger(1);
         return () -> {
@@ -134,8 +163,22 @@ class ExcelTemplateTest {
         @ExcelProperty("ID")
         private Integer id;
 
-        public Integer getId() { return id; }
+        /**
+         * 获取行号。
+         *
+         * @return 编号
+         */
+        public Integer getId() {
+            return id;
+        }
 
-        public void setId(Integer id) { this.id = id; }
+        /**
+         * 设置行号。
+         *
+         * @param id 编号
+         */
+        public void setId(Integer id) {
+            this.id = id;
+        }
     }
 }

@@ -1047,6 +1047,62 @@ def test_excel(base, record):
     record("excel-empty-workbook")
     api(base, "excel/export", query={"rowsPerSheet": 0}, expected=400)
     record("excel-invalid-limit")
+    for mode in ("simple", "multi", "zip"):
+        status, content = request(base + "/api/excel/legacy/export?" + urlencode(
+            {"mode": mode, "count": 11, "pageSize": 4, "rowsPerSheet": 5}))
+        require(status == 200 and zipfile.is_zipfile(io.BytesIO(content)), "legacy export did not return a workbook")
+        parts = [(content, 0)] if mode == "simple" else [(content, index) for index in range(3)]
+        if mode == "zip":
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                require(archive.namelist() == ["legacy-data_1.xlsx", "legacy-data_2.xlsx", "legacy-data_3.xlsx"],
+                        "legacy ZIP entry names/order differ")
+                parts = [(archive.read(name), 0) for name in archive.namelist()]
+        ordered_ids = []
+        stored_rows = []
+        for data, sheet in parts:
+            ordered_ids.extend(upload(base, "import", data, {"sheet": sheet}, prefix="excel")["ids"])
+            result = upload(base, "legacy/import", data, {"sheet": sheet, "mode": "simple"}, prefix="excel")
+            stored_rows.extend(result["stored"])
+        require(ordered_ids == list(range(1, 12)), "legacy exporter reordered or lost rows")
+        require(stored_rows == [{"id": index, "name": "名称" + str(index)} for index in range(1, 12)],
+                "legacy import did not preserve all cell data")
+        record(f"excel-legacy-{mode}-content-roundtrip")
+    status, input_data = request(base + "/api/excel/legacy/export?mode=simple&count=5")
+    require(status == 200, "legacy input fixture generation failed")
+    for transactional, expected_ids in ((True, [1, 2, 5]), (False, [1, 2, 3, 5])):
+        result = upload(base, "legacy/import", input_data,
+                        {"continueOnError": "true", "failAt": 3, "transactional": str(transactional).lower()},
+                        prefix="excel")
+        require((result["total"], result["success"], result["failed"]) == (5, 3, 2), "batch counts incorrect")
+        require(result["stored"] == [{"id": index, "name": "名称" + str(index)} for index in expected_ids],
+                "transaction flag did not affect actual committed rows")
+        require(result["progress"][-1] == {"current": 5, "total": 5, "success": 3, "failed": 2},
+                "final progress is not a consistent snapshot")
+        require(all(item["current"] == item["success"] + item["failed"] for item in result["progress"]),
+                "progress counters are inconsistent")
+        record("excel-transaction-rollback" if transactional else "excel-explicit-no-transaction")
+    boundary = "excel-failure-" + uuid.uuid4().hex
+    body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"input.xlsx\"\r\n"
+            "Content-Type: application/octet-stream\r\n\r\n").encode() + input_data
+    body += f"\r\n--{boundary}--\r\n".encode()
+    status, response = request(base + "/api/excel/legacy/import?failAt=3", "POST", body,
+                               {"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    require(status == 400 and json.loads(response)["code"] == 400, "failed import did not fail promptly")
+    api(base, "excel/legacy/export", query={"mode": "unknown"}, expected=400)
+    record("excel-legacy-business-and-parameter-failure")
+    for mode in ("multi", "zip"):
+        status, data = request(base + "/api/excel/legacy/export?" + urlencode({"mode": mode, "count": 0}))
+        require(status == 200, "legacy empty export failed")
+        if mode == "zip":
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                require(len(archive.namelist()) == 1, "empty ZIP must contain one header-only workbook")
+                data = archive.read(archive.namelist()[0])
+        result = upload(base, "legacy/import", data, {}, prefix="excel")
+        require(result["total"] == 0 and result["stored"] == [], "empty legacy workbook is invalid")
+    record("excel-legacy-empty-workbooks")
+    require(api(base, "excel/legacy/state") == {"rows": 0, "temporaryFiles": 0},
+            "legacy operations left test rows or temporary workbooks")
+    record("excel-legacy-resource-cleanup")
 
 
 def test_docs(base, record, environment):

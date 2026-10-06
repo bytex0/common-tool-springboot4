@@ -40,10 +40,24 @@ public class ExcelController {
      */
     private final ExcelTemplate template;
 
+    /**
+     * 注入自动配置的流式模板。
+     *
+     * @param template Excel 模板
+     */
     public ExcelController(ExcelTemplate template) {
         this.template = template;
     }
 
+    /**
+     * 下载合成数据，验证现有模板 API 未被兼容处理器替代。
+     *
+     * @param count 行数，范围 0 至 10000
+     * @param rowsPerSheet 每 Sheet 数据行数
+     * @param zip 是否为 ZIP
+     * @param response 响应
+     * @throws IOException 输出失败时抛出
+     */
     @GetMapping("/export")
     public void export(@RequestParam(defaultValue = "11") int count,
                        @RequestParam(defaultValue = "5") int rowsPerSheet,
@@ -60,6 +74,14 @@ public class ExcelController {
         }
     }
 
+    /**
+     * 读取指定 Sheet 并返回实际行序。
+     *
+     * @param file 上传文件
+     * @param sheet 零基 Sheet 序号
+     * @return 行号及计数
+     * @throws IOException 打开输入流失败时抛出
+     */
     @PostMapping("/import")
     public ApiResponse<Map<String, Object>> importFile(@RequestPart MultipartFile file,
                                                        @RequestParam(defaultValue = "0") int sheet) throws IOException {
@@ -71,11 +93,22 @@ public class ExcelController {
         }
     }
 
+    /**
+     * 隐藏底层文件或解析细节的错误响应。
+     *
+     * @return 参数错误
+     */
     @ExceptionHandler({IllegalArgumentException.class, ExcelAnalysisException.class})
     public ResponseEntity<ApiResponse<Void>> invalid() {
         return ResponseEntity.badRequest().body(ApiResponse.failOfMessage("请求参数不合法", 400));
     }
 
+    /**
+     * 按四行一批产生确定性的中文示例数据。
+     *
+     * @param count 总行数
+     * @return 批次来源
+     */
     private Supplier<List<ExcelRow>> rows(int count) {
         AtomicInteger next = new AtomicInteger(1);
         return () -> {
