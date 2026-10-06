@@ -1,25 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.8</version>
         <relativePath/>
     </parent>
-
     <groupId>io.github.bytex0</groupId>
     <artifactId>common-tool-springboot4</artifactId>
     <version>4.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-
     <name>common-tool-springboot4</name>
     <description>面向 Spring Boot 4.x 的通用工具与独立 Starter 组件</description>
     <url>https://github.com/bytex0/common-tool-springboot4</url>
-
     <modules>
         <module>common-tool-springboot4-bom</module>
         <module>common-tool-spring-boot-starter</module>
@@ -42,7 +36,6 @@
         <module>dynamic-threadpool-spring-boot-starter</module>
         <module>examples-starter</module>
     </modules>
-
     <properties>
         <java.version>21</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
@@ -67,28 +60,83 @@
         <protobuf.version>4.35.1</protobuf.version>
         <fastjson.version>2.0.65</fastjson.version>
     </properties>
-
     <dependencyManagement>
         <dependencies>
-            <dependency><groupId>com.alibaba</groupId><artifactId>fastjson</artifactId><version>${fastjson.version}</version></dependency>
-            <dependency><groupId>com.alibaba.fastjson2</groupId><artifactId>fastjson2</artifactId><version>${fastjson.version}</version></dependency>
-            <dependency><groupId>com.alibaba</groupId><artifactId>transmittable-thread-local</artifactId><version>${ttl.version}</version></dependency>
-            <dependency><groupId>io.protostuff</groupId><artifactId>protostuff-core</artifactId><version>${protostuff.version}</version></dependency>
-            <dependency><groupId>io.protostuff</groupId><artifactId>protostuff-runtime</artifactId><version>${protostuff.version}</version></dependency>
-            <dependency><groupId>com.google.protobuf</groupId><artifactId>protobuf-java</artifactId><version>${protobuf.version}</version></dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>fastjson</artifactId>
+                <version>${fastjson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.fastjson2</groupId>
+                <artifactId>fastjson2</artifactId>
+                <version>${fastjson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>transmittable-thread-local</artifactId>
+                <version>${ttl.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.protostuff</groupId>
+                <artifactId>protostuff-core</artifactId>
+                <version>${protostuff.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.protostuff</groupId>
+                <artifactId>protostuff-runtime</artifactId>
+                <version>${protostuff.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.github.xiaoymin</groupId>
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${knife4j.version}</version>
             </dependency>
-            <dependency><groupId>org.apache.sshd</groupId><artifactId>sshd-sftp</artifactId><version>${sshd.version}</version></dependency>
-            <dependency><groupId>com.github.mwiede</groupId><artifactId>jsch</artifactId><version>${jsch.version}</version></dependency>
-            <dependency><groupId>com.lmax</groupId><artifactId>disruptor</artifactId><version>${disruptor.version}</version></dependency>
-            <dependency><groupId>org.ahocorasick</groupId><artifactId>ahocorasick</artifactId><version>${ahocorasick.version}</version></dependency>
-            <dependency><groupId>org.lionsoul</groupId><artifactId>ip2region</artifactId><version>${ip2region.version}</version></dependency>
-            <dependency><groupId>com.google.guava</groupId><artifactId>guava</artifactId><version>${guava.version}</version></dependency>
-            <dependency><groupId>org.redisson</groupId><artifactId>redisson</artifactId><version>${redisson.version}</version></dependency>
-            <dependency><groupId>org.apache.fesod</groupId><artifactId>fesod-sheet</artifactId><version>${fesod.version}</version></dependency>
+            <dependency>
+                <groupId>org.apache.sshd</groupId>
+                <artifactId>sshd-sftp</artifactId>
+                <version>${sshd.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.mwiede</groupId>
+                <artifactId>jsch</artifactId>
+                <version>${jsch.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.lmax</groupId>
+                <artifactId>disruptor</artifactId>
+                <version>${disruptor.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ahocorasick</groupId>
+                <artifactId>ahocorasick</artifactId>
+                <version>${ahocorasick.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.lionsoul</groupId>
+                <artifactId>ip2region</artifactId>
+                <version>${ip2region.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>${guava.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson</artifactId>
+                <version>${redisson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.fesod</groupId>
+                <artifactId>fesod-sheet</artifactId>
+                <version>${fesod.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -110,14 +158,12 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
             <url>https://www.apache.org/licenses/LICENSE-2.0</url>
         </license>
     </licenses>
-
     <developers>
         <developer>
             <id>kk01001</id>
@@ -125,13 +171,11 @@
             <url>https://github.com/kk01001</url>
         </developer>
     </developers>
-
     <scm>
         <connection>scm:git:https://github.com/bytex0/common-tool-springboot4.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/bytex0/common-tool-springboot4.git</developerConnection>
         <url>https://github.com/bytex0/common-tool-springboot4</url>
     </scm>
-
     <build>
         <pluginManagement>
             <plugins>
@@ -206,7 +250,6 @@
             </plugin>
         </plugins>
     </build>
-
     <profiles>
         <profile>
             <id>release</id>

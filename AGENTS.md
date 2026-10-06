@@ -41,6 +41,7 @@
 - BOM 不继承根工程，避免循环导入；不得覆盖消费方选用的 Boot 版本。
 - 只有示例模块启用 Boot `repackage`，库模块必须生成普通 JAR。
 - 示例放在 `examples-starter` 下，不发布到远程仓库。
+- XML 使用四空格缩进；POM 中 parent、dependency、plugin 等配置按层级换行，groupId、artifactId、version、scope 等各占一行，不将整条依赖挤在同一行。格式化须保留注释、命名空间和配置语义，不处理 target 中的生成文件。
 
 ## Java 编码
 
