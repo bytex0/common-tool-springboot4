@@ -29,7 +29,12 @@
 2026-10-06 Excel 已恢复原上下文、普通/多 Sheet/ZIP 处理器、静态工具和有界并发导入，
 实现原事务开关并完善进度、取消和流所有权。全量 311 项 Java 测试、Excel 14 项真实检查、
 9 项 Python 测试及坐标制品校验通过，详见 [Excel 功能对照](../excel-spring-boot-starter/MIGRATION.md)。
-剩余待补齐模块为 common-tool、script、dynamic-threadpool。
+2026-10-25 基础工具已补齐操作日志、Nacos 监听、NLP、元数据及启动地址能力，
+完成原公开入口对照与安全默认值说明。全量 396 项 Java 测试、20 项基础示例真实检查、
+9 项 Python 测试及坐标/JAR 检查通过；真实 Nacos 使用 SDK 3.1.0 和隔离服务端 3.2.3。
+详见 [基础工具功能对照](../common-tool-spring-boot-starter/MIGRATION.md)。
+剩余待补齐模块为 script、dynamic-threadpool，随后按 [连续迁移批次](CONTINUOUS-MIGRATION-PLAN.md)
+执行后续十个，不将本次基础补齐计入新增数量。
 
 ## 原项目观察
 
@@ -58,7 +63,9 @@
 | 测试与 CI | 自动配置、响应兼容、应用日志和真实 HTTP 集成测试 |
 | 发布准备 | `release` Profile 生成源码/Javadoc；未配置签名与远程上传 |
 
-基础 Starter 不是旧版本的完整替代品。ID 生成、操作日志、异常工具、事务工具、Nacos 等旧能力还未迁入。启动日志目前只输出应用名和环境，不输出未经确认存在的 Docs、Prometheus 等地址，也不输出配置中心地址。
+上表是初建阶段快照。基础 Starter 当前能力以模块 README 和功能对照为准，
+ID、操作日志、异常、事务、Nacos、NLP 和元数据均已补齐；包名、SDK 和实例隔离 API 的变化
+需要按说明调整接入，不是二进制兼容替换。启动日志恢复访问地址，但不打印配置中心信息。
 
 ## OSS 迁移与验证
 
@@ -92,7 +99,7 @@ OSS 迁移时重新读取的源模块已是 `io.github.archer099:common-tool:2.5
 第一批现有用例曾通过测试，但完整功能与规范验收尚未通过，更正状态见 [BATCH-01](BATCH-01.md)。
 最近一次限流整改后的全量构建为168项Java测试通过，限流双实例真实检查12项通过。
 这不是其他模块的原功能覆盖率；限流逐项证据见其 [功能对照](../rate-limiter-spring-boot-starter/MIGRATION.md)。
-存量正确的作者及 since 保持不变；新建类型按最新 AGENTS 约定使用 linshiqiang 和实际创建时间。
+存量正确的作者及 since 保持不变；新建类型按最新 AGENTS 约定使用 bytex0 和实际创建时间。
 
 下表保留最初推荐分组，不代表当前实现或验收状态。部分模块已开发但仍需补齐，
 具体以审查清单和两批状态表为准：

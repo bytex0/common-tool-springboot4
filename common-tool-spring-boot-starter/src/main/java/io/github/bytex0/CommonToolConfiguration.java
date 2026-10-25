@@ -24,6 +24,24 @@ import org.springframework.core.env.Environment;
 public class CommonToolConfiguration {
 
     /**
+     * 保留原无参显式工厂入口，监听器使用事件所属环境。
+     *
+     * @return 启动监听器
+     */
+    public ApplicationInfoInitialize applicationInfoInitialize() {
+        return new ApplicationInfoInitialize();
+    }
+
+    /**
+     * 保留原无参显式 ID 工厂入口；Spring 装配使用带配置参数的重载。
+     *
+     * @return 使用自动节点推导的 ID 工具
+     */
+    public IdWorkerUtil idWorkerUtil() {
+        return new IdWorkerUtil(null);
+    }
+
+    /**
      * 创建应用信息监听器，不扫描其他模块的组件。
      *
      * @param environment 当前应用环境

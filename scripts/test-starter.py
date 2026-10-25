@@ -119,6 +119,51 @@ def check_download(base, key, expected_content):
 def test_common(base, record):
     data = api(base, "demo/ping")
     require(data == {"application": "common-tool-example", "status": "UP"}, "ping: invalid response")
+    status, body = request(base + "/git-info")
+    metadata = json.loads(body)
+    require(status == 200 and metadata.get("git.branch") == "fixture-main", "Git metadata was not loaded")
+    require("git.build.user.name" not in metadata and "git.remote.origin.url" not in metadata,
+            "Git metadata exposed non-public fields")
+    status, body = request(base + "/get-version")
+    require(status == 200 and json.loads(body)["version"] == "fixture", "Version metadata was not loaded")
+    status, body = request(base + "/ping")
+    require(status == 200 and body == b"OK", "Legacy ping protocol changed")
+    record("common-metadata-and-field-filtering")
+    dictionary = api(base, "common/nlp/dictionary")
+    require(dictionary["forward"] == ["研究生", "命", "起源"], "Forward dictionary matching changed")
+    require(dictionary["backward"] == ["研究", "生命", "起源"], "Backward dictionary matching changed")
+    require(dictionary["bidirectional"] == dictionary["backward"], "Bidirectional matching chose the wrong result")
+    require(dictionary["longWord"] == ["自然语言处理系统"] and dictionary["combinations"] == 5,
+            "Long-word matching or complete segmentation enumeration failed")
+    record("common-dictionary-modes-and-combinations")
+    hanlp = api(base, "common/nlp/hanlp")
+    require(all(hanlp[name] for name in ("words", "terms", "indexWords", "nlpTerms", "keywords", "summary", "phrases")),
+            "HanLP returned empty results for the fixed corpus")
+    require(hanlp["simplified"] == "繁体中文" and hanlp["traditional"] == "簡體中文",
+            "HanLP Chinese conversion failed")
+    require(hanlp["suggestions"] == ["自然语言处理"], "HanLP suggestions failed")
+    custom = api(base, "common/nlp/custom", "POST")
+    require(custom["during"] is True and custom["after"] is False and custom["words"] == [custom["word"]],
+            "HanLP custom dictionary lifecycle failed")
+    record("common-hanlp-real-engine-and-custom-dictionary")
+    audit_input = {"name": "visible", "password": "fixture-" + uuid.uuid4().hex, "token": "fixture-" + uuid.uuid4().hex}
+    audit = api(base, "common/audit", "POST", audit_input)
+    require(audit["status"] == 0 and audit["requestUri"] == "/api/common/audit", "Operation metadata was not captured")
+    require(json.loads(audit["requestBody"])["password"] == "***", "Audit request body was not masked")
+    require(json.loads(audit["responseData"])["access_token"] == "***", "Audit response was not masked")
+    require(all(value not in json.dumps(audit) for value in (audit_input["password"], audit_input["token"])),
+            "Operation log exposed sensitive values")
+    record("common-operation-log-metadata-and-masking")
+    failure = api(base, "common/audit", "POST", audit_input, query={"mode": "failure"}, expected=400)
+    require(failure["status"] == 1 and failure["errorMessage"] == "BizException", "Operation failure was not recorded")
+    no_payload = api(base, "common/audit", "POST", audit_input, query={"mode": "no-payload"})
+    require(no_payload.get("requestParams") is None and no_payload.get("responseData") is None,
+            "Operation capture flags were ignored")
+    large = api(base, "common/audit", "POST", audit_input, query={"mode": "large"})
+    require(json.loads(large["responseData"]) == {"_capture": "omitted"}, "Operation payload limit was ignored")
+    require(api(base, "common/audit", "POST", audit_input, query={"mode": "handler-failure"})["status"] == 0,
+            "Log handler failure replaced the business result")
+    record("common-operation-log-failures-flags-and-limits")
     with ThreadPoolExecutor(max_workers=4) as clients:
         batches = list(clients.map(lambda _: api(base, "common/ids", query={"count": 100}), range(4)))
     ids = [value for batch in batches for value in batch]
@@ -813,6 +858,111 @@ def redis_ports(count):
     raise AssertionError("unable to reserve Redis test ports")
 
 
+def start_nacos(resources, environment):
+    """启动独占 Nacos 容器，客户端 HTTP/gRPC 端口保持相差 1000。"""
+    port = None
+    for _ in range(100):
+        candidate = random.SystemRandom().randrange(20000, 50000)
+        sockets = []
+        try:
+            for number in (candidate, candidate + 1000):
+                listener = socket.socket()
+                sockets.append(listener)
+                listener.bind(("127.0.0.1", number))
+            port = candidate
+            break
+        except OSError:
+            continue
+        finally:
+            for listener in sockets:
+                listener.close()
+    require(port is not None, "unable to reserve Nacos test ports")
+    name = "common-tool-nacos-test-" + uuid.uuid4().hex
+    resources.append(name)
+    container_environment = environment.copy()
+    settings = {
+        "MODE": "standalone",
+        "NACOS_AUTH_ENABLE": "false",
+        "NACOS_AUTH_CONSOLE_ENABLE": "false",
+        "NACOS_AUTH_TOKEN": base64.b64encode(os.urandom(32)).decode(),
+        "NACOS_AUTH_IDENTITY_KEY": "fixture-" + uuid.uuid4().hex,
+        "NACOS_AUTH_IDENTITY_VALUE": uuid.uuid4().hex,
+        "JVM_XMS": "256m",
+        "JVM_XMX": "512m",
+        "JVM_XMN": "128m",
+    }
+    container_environment.update(settings)
+    command = ["docker", "run", "-d", "--name", name, "--label", "common-tool.test=true",
+               "-p", f"127.0.0.1:{port}:8848", "-p", f"127.0.0.1:{port + 1000}:9848"]
+    for key in settings:
+        command.extend(["-e", key])
+    command.append(environment.get("TEST_NACOS_IMAGE", "nacos/nacos-server:v3.2.3"))
+    subprocess.run(command, env=container_environment, check=True, capture_output=True, timeout=180)
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        state = subprocess.run(["docker", "inspect", "--format", "{{.State.Running}}", name],
+                               capture_output=True, timeout=10)
+        if state.returncode != 0 or state.stdout.strip() != b"true":
+            break
+        ready = False
+        for path in ("/nacos/v1/console/health/readiness", "/nacos/v3/admin/core/state"):
+            try:
+                with OPENER.open(f"http://127.0.0.1:{port}{path}", timeout=2) as response:
+                    body = response.read()
+                    ready = response.status == 200 and (body.strip() in (b"UP", b"OK")
+                                                        or json.loads(body).get("code") == 0)
+                if ready:
+                    with socket.create_connection(("127.0.0.1", port + 1000), timeout=1):
+                        pass
+                    break
+            except HTTPError as error:
+                error.close()
+                ready = False
+            except (OSError, URLError, ValueError):
+                ready = False
+        if ready:
+            environment["COMMON_TOOL_NACOS_SERVER_ADDR"] = f"127.0.0.1:{port}"
+            environment["COMMON_TOOL_NACOS_TEST_DATA_ID"] = "common-tool-test-" + uuid.uuid4().hex
+            environment["COMMON_TOOL_NACOS_TEST_GROUP"] = "COMMON_TOOL_TEST_" + uuid.uuid4().hex
+            return
+        time.sleep(0.5)
+    logs = subprocess.run(["docker", "logs", "--tail", "40", name], capture_output=True, timeout=10)
+    for line in (logs.stdout + logs.stderr).decode(errors="replace").splitlines():
+        if not any(word in line.lower() for word in ("password", "secret", "token", "identity")):
+            print(line, file=sys.stderr)
+    raise AssertionError("dedicated Nacos test service did not become ready")
+
+
+def test_nacos(base, record):
+    """同时比对 SDK 读取结果与实际监听回调，不能只检查发布接口返回成功。"""
+    def wait_value(expected):
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            state = api(base, "common/nacos/config")
+            if (state["exists"] == (expected is not None)
+                    and state["receivedPresent"] == (expected is not None)
+                    and state["content"] == (expected or "")
+                    and state["received"] == (expected or "")
+                    and state["revision"] > 0):
+                return
+            time.sleep(0.2)
+        raise AssertionError("Nacos service and listener did not converge to the expected content")
+
+    for label, content in (("initial", "fixture-" + uuid.uuid4().hex),
+                           ("updated", '{"feature":true,"limit":2}')):
+        require(api(base, "common/nacos/config", "POST", {"content": content})["published"],
+                "Nacos did not accept test configuration")
+        wait_value(content)
+        record("common-nacos-" + label + "-content-and-callback")
+        if label == "initial":
+            api(base, "common/nacos/config", "POST", {"content": ""}, expected=400)
+            wait_value(content)
+            record("common-nacos-empty-rejected-without-mutation")
+    require(api(base, "common/nacos/config", "DELETE")["removed"], "Nacos did not delete test configuration")
+    wait_value(None)
+    record("common-nacos-delete-and-callback")
+
+
 def start_redis(resources, environment, cluster):
     ports = redis_ports(4 if cluster else 1)
     name = "common-tool-test-" + uuid.uuid4().hex
@@ -1463,6 +1613,7 @@ def main():
     parser.add_argument("starter", choices=MODULES)
     parser.add_argument("--skip-build", action="store_true", help="use the already-verified current JAR")
     parser.add_argument("--local-oss", action="store_true", help="create a dedicated local S3 service with random credentials")
+    parser.add_argument("--local-nacos", action="store_true", help="create a dedicated Nacos server for the common example")
     args = parser.parse_args()
     module = ROOT / "examples-starter" / MODULES[args.starter]
     report_path = module / "target" / "api-test-report.json"
@@ -1482,6 +1633,7 @@ def main():
     signal.signal(signal.SIGTERM, interrupted)
     try:
         require(not args.local_oss or args.starter == "oss", "--local-oss is only valid for oss")
+        require(not args.local_nacos or args.starter == "common", "--local-nacos is only valid for common")
         if args.starter == "oss" and not args.local_oss:
             require(os.environ.get("OSS_ACCESS_KEY") and os.environ.get("OSS_ACCESS_SECRET"),
                     "OSS_ACCESS_KEY and OSS_ACCESS_SECRET environment variables are required")
@@ -1495,6 +1647,11 @@ def main():
         jar = module / "target" / f"{MODULES[args.starter]}-{version}.jar"
         require(jar.is_file(), "example JAR is missing; run without --skip-build")
         environment = os.environ.copy()
+        if args.starter == "common":
+            for key in list(environment):
+                if key.startswith(("COMMON_TOOL_NACOS_", "SPRING_CLOUD_NACOS_", "NACOS_")):
+                    environment.pop(key)
+            environment["COMMON_TOOL_NACOS_ENABLED"] = "false"
         bucket = "common-tool-it-" + uuid.uuid4().hex
         environment["OSS_BUCKET"] = bucket
         if args.starter == "docs":
@@ -1504,6 +1661,9 @@ def main():
             start_redis(resources, environment, cluster=args.starter == "multi-redis")
             record("redis-test-service-ready")
         with tempfile.TemporaryDirectory(prefix="common-tool-api-") as temporary:
+            if args.local_nacos:
+                start_nacos(resources, environment)
+                record("nacos-test-service-ready")
             if args.local_oss:
                 peer = start_oss(resources, environment, temporary)
                 record("oss-test-service-ready")
@@ -1512,10 +1672,24 @@ def main():
                 record("sftp-test-service-ready")
             log_path = Path(temporary) / "application.log"
             jvm_options = [f"-Dpython.cachedir={Path(temporary) / 'jython-cache'}"] if args.starter == "script" else []
+            application_options = []
+            if args.starter == "common":
+                application_options.append(f"--common-tool.nacos.enabled={'true' if args.local_nacos else 'false'}")
+            if args.local_nacos:
+                for key in ("JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS"):
+                    environment.pop(key, None)
+                home = Path(temporary) / "nacos-client-home"
+                home.mkdir()
+                jvm_options.extend([f"-Duser.home={home}", f"-Dnacos.logging.path={home / 'logs'}",
+                                    f"-DJM.SNAPSHOT.PATH={home / 'snapshots'}"])
+                application_options.extend([
+                    f"--common-tool.nacos.server-addr={environment['COMMON_TOOL_NACOS_SERVER_ADDR']}",
+                    "--common-tool.nacos.namespace=", "--common-tool.nacos.username=", "--common-tool.nacos.password=",
+                ])
             with log_path.open("w") as log:
                 process = subprocess.Popen(
                     ["java", *jvm_options, "-jar", str(jar), "--server.port=0", "--server.address=127.0.0.1",
-                     "--spring.output.ansi.enabled=never"],
+                     "--spring.output.ansi.enabled=never", *application_options],
                     cwd=module, env=environment, stdout=log, stderr=subprocess.STDOUT,
                 )
                 try:
@@ -1533,6 +1707,8 @@ def main():
                         record("peer-application-health")
                     if args.starter == "common":
                         test_common(base, record)
+                        if args.local_nacos:
+                            test_nacos(base, record)
                     elif args.starter == "ip2region":
                         test_ip2region(base, record)
                     elif args.starter == "sensitive-word":
@@ -1596,7 +1772,7 @@ def main():
             except Exception:
                 report["passed"] = False
                 report["cleanupFailed"] = True
-                print("FAIL dedicated Redis test service cleanup", file=sys.stderr)
+                print("FAIL dedicated test service cleanup", file=sys.stderr)
         report["durationSeconds"] = round(time.monotonic() - started, 2)
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(report, indent=2) + "\n")

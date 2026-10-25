@@ -2,7 +2,7 @@
 
 坐标：`io.github.bytex0:common-tool-spring-boot4-starter`。
 基线为 Java 21、Spring Boot 4，JSON 工具使用 Jackson 3。
-当前仍在补齐原版功能，不代表完整迁移，逐项状态见 [MIGRATION.md](MIGRATION.md)。
+原功能逐项对照、兼容调整和实际验证记录见 [MIGRATION.md](MIGRATION.md)。
 
 ## 当前能力
 
@@ -18,6 +18,10 @@
 - 责任链、编码枚举查找、JSON、模板替换、分片、缓存回源、MDC、参数校验和网络地址工具。
 - `CountDownLatch2`、`ServiceThread`：代际等待、唤醒、停机及实际退出后重启。
 - `MethodExpressionEvaluator`：原方法参数和 Bean 引用语义不变，并发发布不突破缓存容量。
+- 可选 Git/版本/ping 端点、实际端口与 IPv6 启动 URL 输出。
+- 实例字典的 FMM/BMM/BIMM、全组合搜索及评分，HanLP 分词、提取、推荐、繁简转换和词库管理。
+- Nacos SDK 客户端及生命周期完整的配置监听。
+- 操作日志注解、处理器/操作者覆盖、有界正文捕获和敏感字段过滤。
 
 ## 配置和依赖
 
@@ -58,6 +62,76 @@ common-tool:
   显式确认可信代理后调用 `getClientIp(request, true)` 才恢复代理头提取。
 - 事务回调两个重载的无事务行为统一为立即执行，旧文档中的“异步”并非原代码实际行为。
 
+## 元数据
+
+设置 `common-tool.metadata.enabled=true` 后提供 `/git-info`、`/get-version` 和 `/ping`。
+无 git.properties 时返回空对象，无 version.json 时返回 404。单个资源默认最多读取一 MiB，
+可通过 `common-tool.metadata.max-resource-bytes` 调整，最大十六 MiB。
+
+Git 默认只展示分支、提交和版本字段，不展示仓库地址、构建用户等信息。
+受访问控制的部署可显式设置 `common-tool.metadata.include-git-details=true` 恢复完整字段。
+启动日志恢复原访问入口输出，优先使用实际随机端口、支持 IPv6 和 HTTPS；
+输出入口路径不意味着相应端点已公开，不再打印 Nacos 地址或其他连接配置。
+
+## NLP
+
+`DictionarySegmenter` 改为实例词库，自动配置默认创建空词典，可通过 Bean 覆盖。
+正向、逆向和双向匹配读取同一不可变快照，支持超过四字的词和补充平面 Unicode 字符。
+全组合使用迭代搜索，默认最多 10000 个组合、1000000 个输出词元；超限明确失败，不返回截断结果。
+预算分别由 `common-tool.nlp.max-combinations` 和 `max-output-tokens` 配置。
+
+使用 HanLP 时显式引入 `com.hankcs:hanlp` 并设置 `common-tool.nlp.hanlp-enabled=true`。
+当前验证版本为 portable-1.8.4，内置词典能够完成本模块提供的算法，无需运行时下载模型。
+`HanlpUtil` 改为实例方法，自定义词典只影响当前实例；同名添加保留原词性和频率，
+词语列表仍可由调用方修改，不影响内部词库。
+保留原单文本 `suggest`，另提供候选集合重载，使相似句推荐可处理实际候选语料。
+
+## Nacos
+
+显式引入 Nacos SDK 并设置 `common-tool.nacos.enabled=true` 后才连接服务。
+`server-addr`、`namespace`、`username`、`password` 支持常用旧
+`spring.cloud.nacos.config.*` 配置回退；其他 SDK 参数使用 `common-tool.nacos.client-properties` 透传。
+新配置优先，SDK 全属性日志输出强制关闭。凭据不得提交或写入日志。
+
+新开关缺省时兼容旧 `spring.cloud.nacos.config.enabled=true` 的显式启用，
+但不沿用旧版“仅引入依赖就默认连接”的行为。配置类不再依赖 Boot 3 专用的 NacosConfigManager。
+
+监听对象继续继承 `AbstractNacosConfig`，提供自己的 ConfigService、dataId、group 和 onReceived。
+管理器使用实际 dataId，不再把 Bean 名当配置 ID；初始旧值不会覆盖早到的新值。
+注册失败回滚所有已注册监听，关闭时移除回调，外部客户端不由监听器关闭。
+默认客户端由 Spring 调用 shutDown。回调队列有界，同一对象串行处理最新状态；
+快速变化可能合并中间状态，配置监听不是逐事件审计通道。
+
+真实验证为 SDK 3.1.0、隔离服务端 3.2.3。SDK 明确拒绝发布空白内容，
+示例返回 400 并验证原配置不变，不将空文本替换成其他内容。读取/接收空文本的能力仍保留并有单元测试。
+
+```bash
+python3 scripts/test-starter.py common --local-nacos
+```
+
+该命令创建独占容器、随机 dataId/group、临时客户端目录并在结束后清理，
+不会连接现有业务 Nacos。可通过 `TEST_NACOS_IMAGE` 指定已经准备好的兼容服务端镜像。
+
+## 操作日志
+
+显式引入 Boot 4 的 `spring-boot-starter-aspectj`。使用 `@EnableOperationLog` 或配置
+`common-tool.operation-log.enabled=true` 激活，显式 false 可关闭注解激活。
+保留 `OperationLog` 的类型、描述及请求/响应采集开关，以及全部原日志模型字段。
+
+用户 `OperationLogHandler` 和 `OperatorInfoProvider` Bean 优先。
+注解 handler/provider 类型仍支持无参创建，构造失败明确报错；
+需要构造器依赖的自定义实现应作为普通 Bean 注册。默认 convertLog 返回模型，不再返回空值。
+
+捕获 JSON 默认最多 4096 字符、16 层，超限或不可序列化返回 `{"_capture":"omitted"}`。
+内置密码、密钥、令牌等字段过滤不可关闭，可通过 sensitive-fields 增加业务敏感字段。
+规则不能识别所有自由文本中的隐含秘密，业务应将这类字段整体加入过滤集合。
+未保留参数名的字符串参数默认隐藏；不读取 Servlet 输入流或展开基础设施对象。
+
+内置处理器默认只输出操作元数据；`log-payloads=true` 才输出已过滤正文。
+错误信息默认记录异常类型，不复制可能含凭据的原异常消息；原业务异常仍原样传播。
+日志故障不替换业务结果，已有业务异常会保留日志故障为 suppressed。
+`trust-proxy-headers` 默认 false；仅在入口代理已删除并重建外部转发头时启用。
+
 ## 示例与验证
 
 `examples-starter/common-tool-example` 真实依赖本 Starter，提供 ID、校验、模板、
@@ -70,4 +144,4 @@ python3 scripts/test-starter.py common
 
 自动化会执行全量构建、启动示例、检查业务响应并清理进程。
 表达式工具变更后还需实际回归 lock、rate-limiter、idempotent。
-操作日志、Nacos、NLP、元数据接口和完整兼容性验收仍在迁移清单中，不能据此标记本 Starter 完成。
+逐项实际检查结果和最终验收状态以 MIGRATION.md 为准。

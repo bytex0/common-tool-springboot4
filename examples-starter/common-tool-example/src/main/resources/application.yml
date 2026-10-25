@@ -9,6 +9,10 @@ server:
 common-tool:
   enabled: true
   application-info-enabled: true
+  metadata:
+    enabled: true
+  nlp:
+    hanlp-enabled: true
 
 management:
   endpoints:

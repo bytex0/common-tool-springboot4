@@ -63,9 +63,21 @@
         <luaj.version>3.0.1</luaj.version>
         <jython.version>2.7.4</jython.version>
         <ivy.version>2.5.3</ivy.version>
+        <hanlp.version>portable-1.8.4</hanlp.version>
+        <nacos-client.version>3.1.0</nacos-client.version>
     </properties>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.alibaba.nacos</groupId>
+                <artifactId>nacos-client</artifactId>
+                <version>${nacos-client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hankcs</groupId>
+                <artifactId>hanlp</artifactId>
+                <version>${hanlp.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.ivy</groupId>
                 <artifactId>ivy</artifactId>

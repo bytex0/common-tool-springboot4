@@ -24,6 +24,23 @@ class ApiResponseTest {
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     /**
+     * 验证审计 DTO 四个字段的 JavaBeans 和序列化协议。
+     */
+    @Test
+    void shouldPreserveBaseDtoFields() {
+        BaseDTO dto = new BaseDTO();
+        dto.setCreateTime(1L);
+        dto.setUpdateTime(2L);
+        dto.setCreateBy("creator");
+        dto.setUpdateBy("updater");
+        JsonNode json = jsonMapper.valueToTree(dto);
+        assertThat(json.path("createTime").asLong()).isEqualTo(1L);
+        assertThat(json.path("updateTime").asLong()).isEqualTo(2L);
+        assertThat(json.path("createBy").asString()).isEqualTo("creator");
+        assertThat(json.path("updateBy").asString()).isEqualTo("updater");
+    }
+
+    /**
      * 验证空成功响应的默认字段。
      */
     @Test

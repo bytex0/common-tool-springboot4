@@ -2,7 +2,6 @@ package io.github.bytex0.common;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -48,11 +47,6 @@ public abstract class ServiceThread implements Runnable {
      * 保护唤醒信号与条件等待。
      */
     private final ReentrantLock notificationLock = new ReentrantLock();
-
-    /**
-     * 唤醒条件，允许信号在等待前到达。
-     */
-    private final Condition notification = notificationLock.newCondition();
 
     /**
      * 当前实际线程，由 lifecycleLock 保护。
@@ -222,7 +216,6 @@ public abstract class ServiceThread implements Runnable {
         try {
             hasNotified.set(true);
             waitPoint.countDown();
-            notification.signalAll();
         } finally {
             notificationLock.unlock();
         }
@@ -236,20 +229,28 @@ public abstract class ServiceThread implements Runnable {
     protected void waitForRunning(long interval) {
         try {
             notificationLock.lockInterruptibly();
+            boolean shouldWait;
             try {
-                long remaining = TimeUnit.MILLISECONDS.toNanos(interval);
-                waitPoint.reset();
-                while (!hasNotified.get() && !stopped && remaining > 0) {
-                    remaining = notification.awaitNanos(remaining);
+                shouldWait = !hasNotified.getAndSet(false) && !stopped;
+                if (shouldWait) {
+                    waitPoint.reset();
                 }
-                hasNotified.set(false);
             } finally {
                 notificationLock.unlock();
+            }
+            if (shouldWait) {
+                waitPoint.await(interval, TimeUnit.MILLISECONDS);
             }
         } catch (InterruptedException exception) {
             stopped = true;
             Thread.currentThread().interrupt();
         } finally {
+            notificationLock.lock();
+            try {
+                hasNotified.set(false);
+            } finally {
+                notificationLock.unlock();
+            }
             onWaitEnd();
         }
     }

@@ -27,6 +27,15 @@ class CommonToolConfigurationTest {
             .withConfiguration(AutoConfigurations.of(CommonToolConfiguration.class));
 
     /**
+     * 验证原无参工厂调用入口仍可使用。
+     */
+    @Test
+    void preservesOriginalNoArgumentFactories() {
+        CommonToolConfiguration configuration = new CommonToolConfiguration();
+        assertThat(configuration.applicationInfoInitialize()).isNotNull();
+        assertThat(configuration.idWorkerUtil()).isNotNull();
+    }
+    /**
      * 验证 Boot 自动配置注册文件。
      */
     @Test

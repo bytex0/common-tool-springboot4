@@ -1,5 +1,6 @@
 package io.github.bytex0.example;
 
+import io.github.bytex0.common.log.annotation.EnableOperationLog;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @since 2026-10-05 14:26:50
  */
 @SpringBootApplication
+@EnableOperationLog
 public class CommonToolExampleApplication {
 
     /**

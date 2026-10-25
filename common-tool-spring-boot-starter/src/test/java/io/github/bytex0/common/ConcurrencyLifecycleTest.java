@@ -25,6 +25,25 @@ class ConcurrencyLifecycleTest {
     private static final Duration WAIT_LIMIT = Duration.ofSeconds(3);
 
     /**
+     * 验证子类仍可使用原 protected waitPoint 唤醒已进入等待的服务。
+     *
+     * @throws InterruptedException 测试等待被中断
+     */
+    @Test
+    void subclassCanReleaseOriginalWaitPoint() throws InterruptedException {
+        DirectSignalService service = new DirectSignalService();
+        service.start();
+        try {
+            await().atMost(WAIT_LIMIT).until(() -> service.running != null
+                    && service.running.getState() == Thread.State.TIMED_WAITING);
+            service.releaseWaitPoint();
+            assertThat(service.returned.await(1, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            service.shutdown(true);
+        }
+    }
+
+    /**
      * 验证归零后立即重置不会把旧代等待者重新阻塞。
      *
      * @throws InterruptedException 等待测试线程退出时被中断
@@ -230,6 +249,62 @@ class ConcurrencyLifecycleTest {
         @Override
         public long getJointime() {
             return 10;
+        }
+    }
+
+    /**
+     * 通过原受保护等待点通知的兼容性测试服务。
+     *
+     * @author bytex0
+     * @since 2026-10-06 19:20:43
+     */
+    private static final class DirectSignalService extends ServiceThread {
+
+        /**
+         * 正在等待的线程。
+         */
+        private volatile Thread running;
+
+        /**
+         * 等待返回信号。
+         */
+        private final CountDownLatch returned = new CountDownLatch(1);
+
+        /**
+         * 获取测试线程名称。
+         *
+         * @return 服务名称
+         */
+        @Override
+        public String getServiceName() {
+            return "direct-wait-point-test";
+        }
+
+        /**
+         * 执行一次可被子类直接释放的等待。
+         */
+        @Override
+        public void run() {
+            running = Thread.currentThread();
+            waitForRunning(TimeUnit.SECONDS.toMillis(30));
+            returned.countDown();
+        }
+
+        /**
+         * 使用原保护字段发送信号。
+         */
+        private void releaseWaitPoint() {
+            waitPoint.countDown();
+        }
+
+        /**
+         * 限制测试清理等待时长。
+         *
+         * @return 毫秒上限
+         */
+        @Override
+        public long getJointime() {
+            return WAIT_LIMIT.toMillis();
         }
     }
 }

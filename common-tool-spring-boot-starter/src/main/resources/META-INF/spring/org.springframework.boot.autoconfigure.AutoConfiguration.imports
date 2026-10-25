@@ -1,2 +1,6 @@
 io.github.bytex0.CommonToolConfiguration
 io.github.bytex0.config.CommonValidationAutoConfiguration
+io.github.bytex0.config.CommonMetadataAutoConfiguration
+io.github.bytex0.config.CommonNlpAutoConfiguration
+io.github.bytex0.nacos.NacosConfiguration
+io.github.bytex0.common.log.config.OperationLogActivationAutoConfiguration

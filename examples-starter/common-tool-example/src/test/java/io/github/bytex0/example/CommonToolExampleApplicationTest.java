@@ -26,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @author bytex0
  * @since 2026-10-05 14:29:12
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "common-tool.nacos.enabled=false")
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
 class CommonToolExampleApplicationTest {
 
@@ -44,6 +45,75 @@ class CommonToolExampleApplicationTest {
      * 通过 Starter 自动装配而非组件扫描注册的启动监听器
      */
     private final ApplicationInfoInitialize applicationInfoInitialize;
+
+    /**
+     * 验证真实 HTTP 下日志遮蔽、采集开关、失败和超限。
+     *
+     * @throws Exception 请求失败
+     */
+    @Test
+    void shouldCaptureOperationLogsWithoutLeakingSensitiveValues() throws Exception {
+        String body = "{\"name\":\"visible\",\"password\":\"fixture-password\",\"token\":\"fixture-token\"}";
+        HttpResponse<String> success = post("/api/common/audit", body);
+        assertThat(success.statusCode()).isEqualTo(200);
+        assertThat(success.body()).doesNotContain("fixture-password", "fixture-token");
+        JsonNode log = jsonMapper.readTree(success.body()).path("data");
+        assertThat(log.path("status").asInt()).isZero();
+        assertThat(log.path("requestUri").asString()).isEqualTo("/api/common/audit");
+        assertThat(jsonMapper.readTree(log.path("requestBody").asString()).path("password").asString())
+                .isEqualTo("***");
+        assertThat(post("/api/common/audit?mode=failure", body).statusCode()).isEqualTo(400);
+        JsonNode noPayload = jsonMapper.readTree(post("/api/common/audit?mode=no-payload", body).body()).path("data");
+        assertThat(noPayload.path("requestParams").isNull()).isTrue();
+        assertThat(noPayload.path("responseData").isNull()).isTrue();
+        JsonNode large = jsonMapper.readTree(post("/api/common/audit?mode=large", body).body()).path("data");
+        assertThat(jsonMapper.readTree(large.path("responseData").asString()).path("_capture").asString())
+                .isEqualTo("omitted");
+        assertThat(post("/api/common/audit?mode=handler-failure", body).statusCode()).isEqualTo(200);
+    }
+
+    /**
+     * 验证实际 Starter 注入的字典和 HanLP 引擎。
+     *
+     * @throws Exception 请求失败
+     */
+    @Test
+    void shouldRunNlpAndCleanCustomWords() throws Exception {
+        JsonNode dictionary = jsonMapper.readTree(get("/api/common/nlp/dictionary").body()).path("data");
+        assertThat(dictionary.path("combinations").asInt()).isEqualTo(5);
+        assertThat(dictionary.path("longWord").get(0).asString()).isEqualTo("自然语言处理系统");
+        HttpResponse<String> response = get("/api/common/nlp/hanlp");
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode hanlp = jsonMapper.readTree(response.body()).path("data");
+        assertThat(hanlp.path("keywords").size()).isPositive();
+        assertThat(hanlp.path("summary").size()).isEqualTo(1);
+        assertThat(hanlp.path("simplified").asString()).isEqualTo("繁体中文");
+        HttpResponse<String> customResponse = post("/api/common/nlp/custom", "");
+        assertThat(customResponse.statusCode()).isEqualTo(200);
+        JsonNode custom = jsonMapper.readTree(customResponse.body()).path("data");
+        assertThat(custom.path("during").asBoolean()).isTrue();
+        assertThat(custom.path("after").asBoolean()).isFalse();
+        assertThat(custom.path("words").get(0).asString()).isEqualTo(custom.path("word").asString());
+    }
+
+    /**
+     * 验证自动配置元数据接口及默认字段过滤。
+     *
+     * @throws Exception HTTP 请求失败
+     */
+    @Test
+    void shouldExposeOnlySelectedMetadata() throws Exception {
+        HttpResponse<String> git = get("/git-info");
+        assertThat(git.statusCode()).isEqualTo(200);
+        JsonNode metadata = jsonMapper.readTree(git.body());
+        assertThat(metadata.path("git.branch").asString()).isEqualTo("fixture-main");
+        assertThat(metadata.has("git.build.user.name")).isFalse();
+        assertThat(metadata.has("git.remote.origin.url")).isFalse();
+        HttpResponse<String> version = get("/get-version");
+        assertThat(version.statusCode()).isEqualTo(200);
+        assertThat(jsonMapper.readTree(version.body()).path("version").asString()).isEqualTo("fixture");
+        assertThat(get("/ping").body()).isEqualTo("OK");
+    }
 
     /**
      * 注入实际自动配置的应用组件。
