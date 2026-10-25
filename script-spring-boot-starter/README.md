@@ -6,7 +6,8 @@
 
 Groovy 版本由 Boot 管理。每次调用独立 Binding、Script 和可关闭类加载器，源内容变化立即生效。
 默认 `parallelism=2`、`queue-capacity=16`、`timeout=5000` 毫秒，排队和编译也计时；
-队列满拒绝，超时取消并中断，Groovy 循环注入中断检查。关闭时取消队列中的任务。
+队列满拒绝，超时取消并中断，Groovy 循环注入中断检查。关闭时取消排队和在途 Future，
+主动解除调用方等待；任务内部关闭服务时不等待自身退出。
 **这不是沙箱，也不能强杀忽略中断的 Java 方法**；不可信代码必须放在独立隔离进程，
 参数中可变嵌套对象及返回对象仍属于业务，不能依赖浅拷贝隔离外部对象副作用。
 
@@ -58,6 +59,35 @@ script:
 原静态全局缓存改为实例缓存；直接使用编译器时由调用方调用 `release` 释放产物，
 调用 `execute` 或 `executeMethod` 会自动释放临时产物。
 
+类型化服务每次调用使用独立持久取消状态，取消与缓存发布共享显式锁。
+即使第三方编译器清除线程中断，取消之后返回的编译产物也不会执行或发布为新缓存，
+刷新超时保留此前有效条目。已经开始的业务代码仍须协作退出，租约归还后才释放资源。
+
+### 直接管理缓存
+
+旧 `ScriptCache` 静态入口改为应用实例，元数据快照不可修改，`get` 返回 Optional。
+`CachedScript` 保留源码、MD5、语言和更新时间；编译对象通过租约读取，避免拿到已淘汰资源。
+旧 `put(id, source, compiled, type)` 改为传入创建该资源的执行器，以明确释放策略。
+原来依赖 `CachedScript#getCompiledScript` 的调用改为以下等价执行流程：
+
+```java
+try (ScriptCache cache = new ScriptCache(100)) {
+    Object compiled = executor.compile(source);
+    cache.put(id, source, compiled, executor);
+    try (ScriptCache.Lease lease = cache.acquire(id, source, executor)) {
+        Object result = executor.executeCompiled(lease.compiledScript(), parameters);
+    }
+    cache.remove(id);
+}
+```
+
+`put` 校验失败时资源仍归调用方；接管成功后不得重复放入或手动关闭同一产物。
+删除、清空和关闭保留已获取的租约，最后一个租约归还时释放对应资源。
+清理多个条目时逐个尝试并保留异常，重复抛出同一异常实例也不会中断后续释放。
+
+`java-script`、`javaScript`、`javascript` 的既有配置拼写均经自动配置测试验证，
+严格模式、宿主访问和 Lua 标准库配置另通过真实引擎行为断言验证，而非只检查属性对象。
+
 所有脚本仅限受信代码。Lua 标准库限制与 JavaScript 默认不授予宿主访问权不构成安全沙箱。
 需要恢复原版 JavaScript 的 Java 互操作时，显式设置 `script.java-script.allow-host-access=true`；
 该开关授予全部宿主访问权，不能用于不可信脚本。Groovy 保留 Ivy 依赖解析能力，
@@ -66,8 +96,13 @@ script:
 这类任务可能继续占用工作线程，不得将该行为描述为强制终止或完整 CPU 隔离。
 需要强制终止的不可信任务必须使用独立进程。
 
-迁移仍在进行，公开缓存 API 兼容、全部配置组合和资源取消边界尚需继续验收，
-详见 [逐项功能对照](MIGRATION.md)。不得仅以五语言正常调用通过标记完整迁移。
+Ivy 解析使用 Groovy 的 JVM 级 Grape 配置；业务需要在启动前设置受控仓库和缓存位置，
+不能把实例脚本缓存隔离等同于 SDK 内部全部全局状态隔离。自动化生成本地专用仓库、
+测试 JAR 以及 `grape.config/grape.root`，不访问外网或用户的 `.groovy` 缓存；
+普通 Maven 测试不进行依赖下载。只有显式启用 `script.example.ivy-enabled=true` 才提供测试依赖端点。
+
+完整公开能力、缓存 API 迁移方式、配置和资源取消证据见 [逐项功能对照](MIGRATION.md)。
 
 验证：`python3 scripts/test-starter.py script`，覆盖原有运算、并发参数、Groovy 超时恢复、
-五语言指定方法、同 ID 源码变化、刷新删除与语法校验。实际结果见示例 target 下检查报告。
+五语言指定方法、同 ID 源码变化、刷新删除、语法校验、类型化超时恢复以及真实 Ivy JAR
+解析/缺失依赖/恢复。实际结果见示例 target 下检查报告。

@@ -2,7 +2,11 @@ package io.github.bytex0.script;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
@@ -11,6 +15,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * 脚本隔离、状态更新、异常与超时的公开接口测试。
@@ -45,7 +50,8 @@ class ScriptTest {
     @Test
     void recompilesSourceAndIsolatesConcurrentBindings() throws Exception {
         try (ScriptService service = new ScriptService(List.of(new GroovyScriptExecutor()), 2, 8, 10000);
-             var clients = Executors.newFixedThreadPool(2)) {
+             ThreadPoolExecutor clients = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS,
+                     new ArrayBlockingQueue<>(2), new ThreadPoolExecutor.AbortPolicy())) {
             assertThat(service.execute("groovy", "return a + 1", Map.of("a", 2))).isEqualTo(3);
             assertThat(service.execute("groovy", "return a + 2", Map.of("a", 2))).isEqualTo(4);
             var first = clients.submit(() -> service.execute("groovy", "return a", Map.of("a", 10)));
@@ -53,6 +59,55 @@ class ScriptTest {
             assertThat(first.get(10, TimeUnit.SECONDS)).isEqualTo(10);
             assertThat(second.get(10, TimeUnit.SECONDS)).isEqualTo(20);
             assertThatThrownBy(() -> service.execute("groovy", "return missing", Map.of())).isInstanceOf(Exception.class);
+        }
+    }
+
+    /**
+     * 验证根包脚本体服务关闭也会取消在途 Future，不让调用方继续等完整超时。
+     *
+     * @throws Exception 测试执行或等待失败
+     */
+    @Test
+    void closingReleasesBodyCallerBeforeCallbackFinishes() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch cancelled = new CountDownLatch(1);
+        CountDownLatch proceed = new CountDownLatch(1);
+        ScriptExecutor executor = mock(ScriptExecutor.class);
+        when(executor.language()).thenReturn("fixture");
+        when(executor.execute("source", Map.of())).thenAnswer(invocation -> {
+            started.countDown();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+            while (proceed.getCount() > 0 && System.nanoTime() < deadline) {
+                try {
+                    proceed.await(10, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException expected) {
+                    cancelled.countDown();
+                }
+            }
+            assertThat(proceed.getCount()).isZero();
+            return "done";
+        });
+        ScriptService service = new ScriptService(List.of(executor), 1, 2, 10000);
+        try (ThreadPoolExecutor clients = new ThreadPoolExecutor(2, 2, 0, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(2), new ThreadPoolExecutor.AbortPolicy())) {
+            Future<Object> result = clients.submit(() -> service.execute("fixture", "source", Map.of()));
+            try {
+                assertThat(started.await(10, TimeUnit.SECONDS)).isTrue();
+                Future<?> closing = clients.submit(service::close);
+                try {
+                    assertThat(cancelled.await(10, TimeUnit.SECONDS)).isTrue();
+                    assertThatThrownBy(() -> result.get(1, TimeUnit.SECONDS))
+                            .hasCauseInstanceOf(CancellationException.class);
+                } finally {
+                    proceed.countDown();
+                }
+                closing.get(10, TimeUnit.SECONDS);
+            } finally {
+                proceed.countDown();
+            }
+        } finally {
+            proceed.countDown();
+            service.close();
         }
     }
 

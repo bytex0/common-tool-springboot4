@@ -2,10 +2,13 @@ package io.github.bytex0.script.example;
 
 import io.github.bytex0.script.enums.ScriptType;
 import io.github.bytex0.script.exception.ScriptValidateException;
+import io.github.bytex0.script.exception.ScriptExecuteException;
 import io.github.bytex0.script.service.ScriptService;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -97,6 +100,35 @@ public class TypedScriptController {
     public Map<String, Object> validate(@RequestParam(defaultValue = "true") boolean valid) {
         service.validate(ScriptType.GROOVY, valid ? "def execute(p) { 1 }" : "def {");
         return Map.of("code", 0, "data", Map.of("valid", true));
+    }
+
+    /**
+     * 使用固定可中断循环验证类型化服务的调用超时，不接受客户端源码。
+     *
+     * @return 仅在循环意外正常结束时返回，用于发现超时约束失效
+     */
+    @GetMapping("/api/script/typed/timeout")
+    public Map<String, Object> timeout() {
+        String id = "timeout-" + UUID.randomUUID();
+        try {
+            service.execute(id, ScriptType.GROOVY, "def execute(p) { while (true) { } }", Map.of());
+            return Map.of("code", 0, "data", Map.of("unexpectedCompletion", true));
+        } finally {
+            service.remove(id);
+        }
+    }
+
+    /**
+     * 区分调用超时与其他执行错误，不向响应输出受信源码或内部引擎细节。
+     *
+     * @param exception 服务执行异常
+     * @return 超时为 504，其他执行失败为 500
+     */
+    @ExceptionHandler(ScriptExecuteException.class)
+    public ResponseEntity<Map<String, Integer>> executionFailure(ScriptExecuteException exception) {
+        HttpStatus status = exception.getCause() instanceof TimeoutException
+                ? HttpStatus.GATEWAY_TIMEOUT : HttpStatus.INTERNAL_SERVER_ERROR;
+        return ResponseEntity.status(status).body(Map.of("code", status.value()));
     }
 
     /**

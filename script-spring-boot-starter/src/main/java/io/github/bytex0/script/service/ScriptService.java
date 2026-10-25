@@ -9,13 +9,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.util.Assert;
 
@@ -94,6 +96,26 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
     private final long timeoutMillis;
 
     /**
+     * 仅协调提交、完成登记和关闭快照，不持锁执行脚本或等待线程退出。
+     */
+    private final ReentrantLock lifecycleLock = new ReentrantLock();
+
+    /**
+     * 在途 Future 与取消状态，由 lifecycleLock 保护，总数受线程池和队列容量限制。
+     */
+    private final Map<FutureTask<Object>, ScriptCache.Invocation> invocations = new HashMap<>();
+
+    /**
+     * 当前线程是否在执行本服务任务，关闭时避免等待自身退出。
+     */
+    private final ThreadLocal<Boolean> executing = new ThreadLocal<>();
+
+    /**
+     * 关闭是否已开始，由 lifecycleLock 保护。
+     */
+    private boolean closed;
+
+    /**
      * 保留原版仅传执行器列表的构造入口，采用有界默认值。
      *
      * @param executors 非空执行器列表，类型不得重复
@@ -153,7 +175,12 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
      */
     @Override
     public void run(String... args) {
-        Assert.state(!workers.isShutdown(), "Script service is closed");
+        lifecycleLock.lock();
+        try {
+            Assert.state(!closed, "Script service is closed");
+        } finally {
+            lifecycleLock.unlock();
+        }
     }
 
     /**
@@ -186,8 +213,9 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
         Assert.notNull(params, "Script parameters are required");
         ScriptExecutor executor = getExecutor(type);
         Map<String, Object> bindings = new HashMap<>(params);
-        return await(() -> {
-            try (ScriptCache.Lease lease = cache.acquire(scriptId, script, executor)) {
+        return await(invocation -> {
+            try (ScriptCache.Lease lease = cache.acquire(scriptId, script, executor, invocation)) {
+                invocation.checkActive();
                 if (methodName == null || methodName.isBlank()) {
                     return executor.executeCompiled(lease.compiledScript(), bindings);
                 }
@@ -207,8 +235,8 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
         checkSource(script);
         Assert.hasText(scriptId, "Script ID is required");
         ScriptExecutor executor = getExecutor(type);
-        await(() -> {
-            cache.refresh(scriptId, script, executor);
+        await(invocation -> {
+            cache.refresh(scriptId, script, executor, invocation);
             return Boolean.TRUE;
         });
     }
@@ -231,7 +259,8 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
     public void validate(ScriptType type, String script) {
         checkSource(script);
         ScriptExecutor executor = getExecutor(type);
-        await(() -> {
+        await(invocation -> {
+            invocation.checkActive();
             executor.validate(script);
             return Boolean.TRUE;
         });
@@ -245,8 +274,13 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
     public void addExecutor(ScriptExecutor executor) {
         Assert.notNull(executor, "Script executor is required");
         Assert.notNull(executor.getType(), "Script type is required");
-        Assert.state(!workers.isShutdown(), "Script service is closed");
-        executors.put(executor.getType(), executor);
+        lifecycleLock.lock();
+        try {
+            Assert.state(!closed, "Script service is closed");
+            executors.put(executor.getType(), executor);
+        } finally {
+            lifecycleLock.unlock();
+        }
         cache.clear();
     }
 
@@ -278,19 +312,63 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
      * @param task 待执行任务
      * @return 任务结果
      */
-    private Object await(Callable<Object> task) {
-        Future<Object> future = workers.submit(task);
+    private Object await(Function<ScriptCache.Invocation, Object> task) {
+        ScriptCache.Invocation invocation;
+        FutureTask<Object> future;
+        lifecycleLock.lock();
+        try {
+            Assert.state(!closed, "Script service is closed");
+            invocation = cache.newInvocation();
+            future = new FutureTask<>(() -> {
+                executing.set(true);
+                try {
+                    invocation.checkActive();
+                    return task.apply(invocation);
+                } finally {
+                    executing.remove();
+                }
+            }) {
+                /**
+                 * Future 完成或取消时移除登记，取消的编译资源仍由调用租约负责释放。
+                 */
+                @Override
+                protected void done() {
+                    lifecycleLock.lock();
+                    try {
+                        invocations.remove(this);
+                    } finally {
+                        lifecycleLock.unlock();
+                    }
+                }
+            };
+            invocations.put(future, invocation);
+            try {
+                workers.execute(future);
+            } catch (RuntimeException exception) {
+                invocations.remove(future);
+                invocation.cancel();
+                throw exception;
+            }
+        } finally {
+            lifecycleLock.unlock();
+        }
         try {
             return future.get(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | InterruptedException exception) {
+            invocation.cancel();
             future.cancel(true);
             workers.purge();
             if (exception instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
             throw new ScriptExecuteException("Script execution interrupted or timed out", exception);
+        } catch (CancellationException exception) {
+            throw new ScriptExecuteException("Script execution cancelled", exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
+            if (cause instanceof CancellationException cancellation) {
+                throw new ScriptExecuteException("Script execution cancelled", cancellation);
+            }
             if (cause instanceof RuntimeException runtime) {
                 throw runtime;
             }
@@ -312,17 +390,31 @@ public class ScriptService implements CommandLineRunner, AutoCloseable {
     }
 
     /**
-     * 停止排队任务并限时等待执行线程；不响应中断的任务仍持有租约，不提前关闭资源。
+     * 取消排队和在途调用并限时等待工作线程；持久取消阻止晚到编译执行或写回缓存。
+     * 不响应中断的已执行业务仍持有租约，不提前关闭资源；在任务内部关闭时不等待自身。
      */
     @Override
     public void close() {
-        for (Runnable queued : workers.shutdownNow()) {
-            if (queued instanceof Future<?> future) {
-                future.cancel(false);
-            }
-        }
+        Map<FutureTask<Object>, ScriptCache.Invocation> pending;
+        lifecycleLock.lock();
         try {
-            workers.awaitTermination(SHUTDOWN_SECONDS, TimeUnit.SECONDS);
+            if (closed) {
+                return;
+            }
+            closed = true;
+            pending = new HashMap<>(invocations);
+        } finally {
+            lifecycleLock.unlock();
+        }
+        pending.forEach((future, invocation) -> {
+            invocation.cancel();
+            future.cancel(true);
+        });
+        workers.shutdownNow();
+        try {
+            if (!Boolean.TRUE.equals(executing.get())) {
+                workers.awaitTermination(SHUTDOWN_SECONDS, TimeUnit.SECONDS);
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         } finally {

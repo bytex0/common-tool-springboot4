@@ -3,9 +3,11 @@ package io.github.bytex0.script;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -33,6 +35,16 @@ public class ScriptService implements AutoCloseable {
      * 排队、编译及执行总等待上限，单位毫秒。
      */
     private final long timeoutMillis;
+
+    /**
+     * 已登记的排队和在途任务，关闭时主动取消 Future，解除调用方等待。
+     */
+    private final Set<FutureTask<Object>> tasks = ConcurrentHashMap.newKeySet();
+
+    /**
+     * 标记当前工作线程，脚本内部关闭服务时不等待自身退出。
+     */
+    private final ThreadLocal<Boolean> executing = new ThreadLocal<>();
 
     /**
      * 创建兼容脚本体服务，不使用静态全局状态。
@@ -72,8 +84,31 @@ public class ScriptService implements AutoCloseable {
         Assert.isTrue(source.length() <= 65536, "Script exceeds 65536 characters");
         ScriptExecutor executor = executors.get(language);
         Assert.notNull(executor, "Unsupported script language");
+        Assert.notNull(parameters, "Script parameters are required");
         Map<String, Object> bindings = new HashMap<>(parameters);
-        Future<Object> future = workers.submit(() -> executor.execute(source, bindings));
+        FutureTask<Object> future = new FutureTask<>(() -> {
+            executing.set(true);
+            try {
+                return executor.execute(source, bindings);
+            } finally {
+                executing.remove();
+            }
+        }) {
+            /**
+             * 完成或取消时清除登记，不保留已结束的参数和执行上下文。
+             */
+            @Override
+            protected void done() {
+                tasks.remove(this);
+            }
+        };
+        tasks.add(future);
+        try {
+            workers.execute(future);
+        } catch (RuntimeException exception) {
+            tasks.remove(future);
+            throw exception;
+        }
         try {
             return future.get(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | InterruptedException exception) {
@@ -96,17 +131,17 @@ public class ScriptService implements AutoCloseable {
     }
 
     /**
-     * 取消排队任务，通知执行任务中断并最多等待五秒，不强制终止受信回调。
+     * 取消排队及在途 Future，通知执行任务中断并最多等待五秒，不强制终止受信回调。
+     * 先关闭任务池再遍历已登记任务，防止关闭快照遗漏之后成功提交的任务。
      */
     @Override
     public void close() {
-        for (Runnable queued : workers.shutdownNow()) {
-            if (queued instanceof Future<?> future) {
-                future.cancel(false);
-            }
-        }
+        workers.shutdownNow();
+        tasks.forEach(future -> future.cancel(true));
         try {
-            workers.awaitTermination(5, TimeUnit.SECONDS);
+            if (!Boolean.TRUE.equals(executing.get())) {
+                workers.awaitTermination(5, TimeUnit.SECONDS);
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }

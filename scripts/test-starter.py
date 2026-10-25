@@ -383,7 +383,35 @@ def test_disruptor(base, record):
     record("disruptor-invalid-dynamic-configuration")
 
 
-def test_script(base, record):
+def create_ivy_fixture(temporary):
+    """创建只允许本地解析的 Ivy 仓库、测试 JAR 和配置，全部位于本次临时目录。"""
+    root = Path(temporary)
+    repository = root / "ivy-repository"
+    artifact = repository / "io/github/bytex0/fixture/script-payload/1.0"
+    artifact.mkdir(parents=True)
+    payload = "ivy-fixture-" + uuid.uuid4().hex
+    with zipfile.ZipFile(artifact / "script-payload-1.0.jar", "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("bytex0-fixture/value.txt", payload)
+    project = ET.Element("project", xmlns="http://maven.apache.org/POM/4.0.0")
+    for key, value in (("modelVersion", "4.0.0"), ("groupId", "io.github.bytex0.fixture"),
+                       ("artifactId", "script-payload"), ("version", "1.0"), ("packaging", "jar")):
+        ET.SubElement(project, key).text = value
+    ET.indent(project, space="    ")
+    ET.ElementTree(project).write(artifact / "script-payload-1.0.pom", encoding="utf-8", xml_declaration=True)
+    settings = ET.Element("ivysettings")
+    ET.SubElement(settings, "settings", defaultResolver="downloadGrapes")
+    resolvers = ET.SubElement(settings, "resolvers")
+    for name in ("downloadGrapes", "cachedGrapes"):
+        chain = ET.SubElement(resolvers, "chain", name=name, returnFirst="true")
+        ET.SubElement(chain, "ibiblio", name=name + "-fixture", m2compatible="true",
+                      root=repository.as_uri() + "/", usepoms="true")
+    ET.indent(settings, space="    ")
+    config = root / "grapeConfig.xml"
+    ET.ElementTree(settings).write(config, encoding="utf-8", xml_declaration=True)
+    return config, payload
+
+
+def test_script(base, record, ivy_payload):
     require(api(base, "script/run", query={"a": 2, "b": 3})["value"] == 5, "Groovy sum incorrect")
     require(api(base, "script/run", query={"name": "product", "a": 2, "b": 3})["value"] == 6, "Groovy product incorrect")
     with ThreadPoolExecutor(max_workers=4) as pool:
@@ -406,6 +434,16 @@ def test_script(base, record):
     api(base, "script/typed/validate", query={"valid": "false"}, expected=400)
     api(base, "script/typed/run", query={"type": "UNKNOWN"}, expected=400)
     record("script-validation-and-unknown-language")
+    api(base, "script/typed/timeout", expected=504)
+    require(api(base, "script/typed/run", query={"a": 20, "b": 22})["value"] == 42,
+            "typed script worker or cache failed after cancellation")
+    record("script-typed-timeout-and-recovery")
+    require(api(base, "script/typed/dependency")["value"] == ivy_payload,
+            "Ivy did not resolve the actual fixture JAR payload")
+    api(base, "script/typed/dependency", query={"available": "false"}, expected=400)
+    require(api(base, "script/typed/dependency")["value"] == ivy_payload,
+            "Ivy resolution failure damaged the previous compiled script")
+    record("script-ivy-local-jar-resolution-and-failure-recovery")
 
 
 def test_threadpool(base, record):
@@ -1673,6 +1711,13 @@ def main():
             log_path = Path(temporary) / "application.log"
             jvm_options = [f"-Dpython.cachedir={Path(temporary) / 'jython-cache'}"] if args.starter == "script" else []
             application_options = []
+            ivy_payload = None
+            if args.starter == "script":
+                config, ivy_payload = create_ivy_fixture(temporary)
+                for key in ("JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS"):
+                    environment.pop(key, None)
+                jvm_options.extend([f"-Dgrape.root={Path(temporary) / 'grape-cache'}", f"-Dgrape.config={config}"])
+                application_options.append("--script.example.ivy-enabled=true")
             if args.starter == "common":
                 application_options.append(f"--common-tool.nacos.enabled={'true' if args.local_nacos else 'false'}")
             if args.local_nacos:
@@ -1719,7 +1764,7 @@ def main():
                     elif args.starter == "sftp":
                         test_sftp(base, record, environment)
                     elif args.starter == "script":
-                        test_script(base, record)
+                        test_script(base, record, ivy_payload)
                     elif args.starter == "dynamic-threadpool":
                         test_threadpool(base, record)
                     elif args.starter == "local-cache":

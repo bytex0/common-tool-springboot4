@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import org.springframework.util.Assert;
@@ -93,11 +94,26 @@ public final class ScriptCache implements AutoCloseable {
      * @return 调用者必须关闭的执行租约
      */
     public Lease acquire(String scriptId, String source, ScriptExecutor executor) {
+        return acquire(scriptId, source, executor, newInvocation());
+    }
+
+    /**
+     * 使用可持久取消的调用状态获取租约；取消与缓存发布共享锁，不依赖编译器保留中断标记。
+     *
+     * @param scriptId 非空脚本 ID
+     * @param source 非空源码
+     * @param executor 非空执行器
+     * @param invocation 本缓存创建的调用状态
+     * @return 调用者负责关闭的租约，执行前仍须检查调用状态
+     */
+    public Lease acquire(String scriptId, String source, ScriptExecutor executor, Invocation invocation) {
         validate(scriptId, source, executor);
+        Assert.isTrue(invocation != null && invocation.owner == this, "Invocation belongs to another cache");
         long expectedRevision;
         stateLock.lock();
         try {
             Assert.state(!closed, "Script cache is closed");
+            invocation.checkActive();
             Entry existing = entries.get(scriptId);
             if (matches(existing, source, executor)) {
                 existing.references++;
@@ -114,14 +130,15 @@ public final class ScriptCache implements AutoCloseable {
         stateLock.lock();
         try {
             Entry existing = entries.get(scriptId);
-            if (!closed && matches(existing, source, executor)) {
+            if (!closed && !invocation.cancelled && matches(existing, source, executor)) {
                 retire(candidate, cleanup);
                 existing.references++;
                 lease = new Lease(existing);
             } else {
                 candidate.references++;
                 lease = new Lease(candidate);
-                if (!closed && !Thread.currentThread().isInterrupted() && revision == expectedRevision) {
+                if (!closed && !invocation.cancelled && !Thread.currentThread().isInterrupted()
+                        && revision == expectedRevision) {
                     retire(entries.put(scriptId, candidate), cleanup);
                     evict(cleanup);
                 } else {
@@ -138,7 +155,7 @@ public final class ScriptCache implements AutoCloseable {
             try {
                 lease.close();
             } catch (RuntimeException | Error closeFailure) {
-                exception.addSuppressed(closeFailure);
+                preserveFailure(exception, closeFailure);
             }
             throw exception;
         }
@@ -152,11 +169,25 @@ public final class ScriptCache implements AutoCloseable {
      * @param executor 非空执行器
      */
     public void refresh(String scriptId, String source, ScriptExecutor executor) {
+        refresh(scriptId, source, executor, newInvocation());
+    }
+
+    /**
+     * 使用调用状态刷新，取消后晚到的编译资源只释放，不覆盖此前有效条目。
+     *
+     * @param scriptId 非空脚本 ID
+     * @param source 非空源码
+     * @param executor 非空执行器
+     * @param invocation 本缓存创建的调用状态
+     */
+    public void refresh(String scriptId, String source, ScriptExecutor executor, Invocation invocation) {
         validate(scriptId, source, executor);
+        Assert.isTrue(invocation != null && invocation.owner == this, "Invocation belongs to another cache");
         long expectedRevision;
         stateLock.lock();
         try {
             Assert.state(!closed, "Script cache is closed");
+            invocation.checkActive();
             expectedRevision = ++revision;
         } finally {
             stateLock.unlock();
@@ -165,7 +196,8 @@ public final class ScriptCache implements AutoCloseable {
         List<Entry> cleanup = new ArrayList<>();
         stateLock.lock();
         try {
-            if (!closed && !Thread.currentThread().isInterrupted() && revision == expectedRevision) {
+            if (!closed && !invocation.cancelled && !Thread.currentThread().isInterrupted()
+                    && revision == expectedRevision) {
                 retire(entries.put(scriptId, candidate), cleanup);
                 evict(cleanup);
             } else {
@@ -324,12 +356,92 @@ public final class ScriptCache implements AutoCloseable {
                 if (failure == null) {
                     failure = exception;
                 } else {
-                    failure.addSuppressed(exception);
+                    preserveFailure(failure, exception);
                 }
             }
         }
         if (failure != null) {
             throw failure;
+        }
+    }
+
+    /**
+     * 保留后续资源故障，重复异常实例不进行自抑制。
+     *
+     * @param primary 原异常
+     * @param secondary 后续异常
+     */
+    private static void preserveFailure(Throwable primary, Throwable secondary) {
+        if (primary != secondary) {
+            primary.addSuppressed(secondary);
+        }
+    }
+
+    /**
+     * 为单次调度创建独立取消状态，不使用线程局部或跨应用全局上下文。
+     *
+     * @return 本缓存所属的单次调用状态
+     */
+    public Invocation newInvocation() {
+        stateLock.lock();
+        try {
+            Assert.state(!closed, "Script cache is closed");
+            return new Invocation();
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    /**
+     * 单次调用的持久取消标记，与缓存发布共用状态锁；不持锁编译、执行或释放引擎资源。
+     *
+     * @author bytex0
+     * @since 2026-10-25 11:02:17
+     */
+    public final class Invocation {
+
+        /**
+         * 创建状态的缓存，防止跨缓存误用导致锁保护失效。
+         */
+        private final ScriptCache owner = ScriptCache.this;
+
+        /**
+         * 是否已取消，仅在 stateLock 内访问。
+         */
+        private boolean cancelled;
+
+        /**
+         * 仅由缓存创建调用状态。
+         */
+        private Invocation() {
+        }
+
+        /**
+         * 永久取消调用，方法返回后该调用不能再发布新缓存。
+         */
+        public void cancel() {
+            stateLock.lock();
+            try {
+                cancelled = true;
+            } finally {
+                stateLock.unlock();
+            }
+        }
+
+        /**
+         * 在开始编译或执行前检查状态；已进入的受信代码仍须协作停止。
+         *
+         * @throws CancellationException 调用已取消、线程中断或缓存已关闭
+         */
+        public void checkActive() {
+            stateLock.lock();
+            try {
+                if (cancelled || closed || Thread.currentThread().isInterrupted()) {
+                    throw new CancellationException("Script invocation is cancelled");
+                }
+            } finally {
+                stateLock.unlock();
+            }
         }
     }
 

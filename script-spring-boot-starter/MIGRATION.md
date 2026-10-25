@@ -3,9 +3,10 @@
 ## 当前状态
 
 本次对照依据同级 `common-tool/script-spring-boot-starter` 实际源码、POM 和当前模块。
-已新增五语言执行器、类型化服务、有界租约缓存、配置对象及对应示例，
-**尚未完成全部兼容边界验收，不能标记完整迁移**。
-以下“待补齐”不代表删除授权；未完成实现和实际验证前不得标记迁移完成。
+五语言执行器、类型化服务、有界租约缓存、配置与示例已补齐，
+2026-10-25 继续完成持久取消、关闭等待、旧配置组合和 Ivy 解析验收。
+下表“待补齐”为最初审计快照，当前状态以实现映射与最终验证记录为准。
+缓存等源码 API 调整需要按 README 迁移，不宣称只替换包名即可二进制兼容。
 
 原文件均相对于原模块的 `src/main/java/io/github/archer099/script/`。
 目标根包为 `io.github.bytex0.script`。
@@ -83,10 +84,13 @@ git diff --check
 | 按 ID 执行、指定方法、刷新、删除、校验和动态注册 | `service/ScriptService` | `typedServiceSupportsCacheManagementAndRegistration` | 已实现 |
 | 缓存 get/put/remove/clear 及元数据 | `cache/ScriptCache`，put 接收所属执行器，执行通过租约获得资源 | `ScriptCacheTest` | 已实现安全替代入口，源码兼容变化见下文 |
 | 容量、源码变化、关闭及失效竞争 | `ScriptCache` 的容量限制、revision、引用计数及关闭 | `ScriptCacheTest` 的淘汰、关闭、删除竞争及语言配额测试 | 已实现 |
-| 原配置对象及语言开关 | `config/ScriptProperties`、`config/ScriptAutoConfiguration` | `ScriptAutoConfigurationTest` | 已实现；仍需完整核对旧配置命名组合 |
+| 原配置对象及语言开关 | `config/ScriptProperties`、`config/ScriptAutoConfiguration` | `ScriptAutoConfigurationTest` 的 java-script/javaScript/javascript、strictMode/strict-mode、开关及真实引擎配置效果 | 已验证 |
 | 普通调用和真实 Starter 集成 | `TypedScriptController` 的 run/cache/validate | `ScriptExampleTest`、`scripts/test-starter.py script` | 实际打包 HTTP 验证 11 项通过 |
+| 调用取消、编译取消、刷新取消与关闭 | `ScriptCache.Invocation`、类型化 `ScriptService#await/close`，根包服务在途 Future 登记 | `ScriptCancellationTest` 三项、`ScriptTest#closingReleasesBodyCallerBeforeCallbackFinishes` | 原清除中断问题有先失败后修复记录，已验证 |
+| 缓存多资源清理故障 | `ScriptCache#releaseAll/preserveFailure` | `ScriptCacheTest#repeatedReleaseFailureDoesNotSkipRemainingResources` | 同一异常实例不触发自抑制，全部资源仍被尝试释放 |
+| Ivy 动态依赖解析 | 原 Groovy 编译路径保留，真实加载测试 Maven JAR | `DependencyScriptControllerTest`、`scripts/test_script_fixture.py`、实际 HTTP 依赖接口 | 本地真实 Grape/Ivy 解析和缺失依赖恢复已验证 |
 
-## 本轮实际验证
+## 前一阶段验证（97d66c2）
 
 - `python3 scripts/test-starter.py script` 完成全量 clean verify：334 项 Java 测试，
   无失败、错误或跳过；18 个 Starter 坐标、BOM 与普通库 JAR 检查通过。
@@ -117,9 +121,38 @@ git diff --check
   脚本体读取 `result` 变量，指定方法返回其调用结果。
 - 编译期间 AST 转换、依赖解析或脚本语言扩展可能有副作用，校验不构成安全扫描。
 - 超时保证调用方等待有界，不保证强制终止 Java、JavaScript、Python 或不响应中断的第三方回调。
-  已中断的编译任务不发布新缓存；忽略或清除中断的受信代码仍需业务自行控制副作用。
+  调用取消与缓存发布共用显式锁，即使编译器清除中断，晚到编译结果也不再执行或发布缓存。
+  取消之前已经进入的受信编译器、AST 转换或脚本代码仍需业务自行控制副作用。
+- Grape 使用 SDK 的 JVM 级解析器和缓存配置，本 Starter 不通过修改其静态实例伪造应用隔离。
+  实际联调在独立示例进程内使用专用本地仓库与 `grape.root/grape.config`，不访问用户缓存或外网。
 
-## 剩余验收
+## 本次补齐的验收项
 
-缓存公开 API 迁移方式、全部旧配置命名组合、更多关闭/取消竞争和 Ivy 动态依赖解析
-仍需继续核对验证。上述内容未全部验收前，不将本模块标记为完整迁移；本次提交仅保存阶段成果。
+- 缓存 API：`get` 的 Optional 只读元数据、MD5/源码/类型/时间，`put` 接管创建执行器，
+  `acquire` 租约代替裸编译资源读取，`remove/clear/close` 延迟资源释放；README 提供直接调用迁移示例。
+- 配置：总开关、原全局容量与超时、Groovy 配额、JavaScript 三种名称及严格模式/宿主访问、
+  Lua 标准库限制、Java/Python 开关、可选依赖缺失和用户 Bean 覆盖。
+- 生命周期：排队和编译纳入超时；持久取消避免清除中断后复活；刷新取消保留旧缓存；
+  关闭取消在途 Future，调用方无需等待编译器结束；资源释放仍由租约承担，不强杀任意 Java 代码。
+- 真实依赖：隔离 file Maven 仓库含随机资源 JAR，接口比对实际内容，缺失依赖为 400，
+  错误后仍可读取原依赖；不是用模拟返回值或 HTTP 200 代替依赖解析验证。
+
+## 最终验证（2026-10-25）
+
+- `python3 scripts/test-starter.py script` 执行全量 `clean verify`：405 项 Java 测试通过，
+  0 失败、0 错误、0 跳过。旧根包接口和新类型化服务分别验证。
+- 13 项真实 HTTP/生命周期检查全部通过，包含五语言、原脚本体、刷新删除、
+  类型化超时恢复、真实 Ivy 解析、缺失依赖与恢复；示例进程、依赖仓库和引擎缓存全部清理。
+- 10 项 Python 测试通过；18 个 Starter 坐标、BOM 和普通库 JAR 检查通过。
+- 本模块及示例全部主/测试源码 Checkstyle 通过；禁止用法扫描和 `git diff --check` 通过。
+- 人工复核范围包含取消与缓存发布的锁顺序、锁外资源释放、关闭期间提交、配置生效、
+  参数/源码边界和敏感信息输出，不宣称全部阿里规范均被自动化工具覆盖。
+
+| 验收维度 | 当前状态 |
+| --- | --- |
+| 功能对齐 | 原五语言、方法、编译/校验、服务注册、缓存和配置能力已映射，原无效入口有等价实现 |
+| 编码规范 | Checkstyle、禁止用法扫描和本次人工复核通过；新建类型作者 bytex0 |
+| 单元/接口测试 | 405 项全量测试通过，取消缺陷有明确的失败回归及修复后通过证据 |
+| 真实联调 | 13 项真实检查通过，无外部依赖跳过；Ivy 使用实际本地 Maven JAR 与 Grape 引擎 |
+
+本次完成该模块剩余迁移验收，不计入后续十个新 Starter；下一项为动态线程池。

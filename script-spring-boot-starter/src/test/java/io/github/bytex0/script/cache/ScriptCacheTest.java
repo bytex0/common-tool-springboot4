@@ -13,6 +13,12 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * 有界缓存的租约释放、失效竞争和实例隔离测试。
@@ -26,6 +32,23 @@ class ScriptCacheTest {
      * 并发测试等待上限，单位为秒。
      */
     private static final int WAIT_SECONDS = 10;
+
+    /**
+     * 验证重复的资源关闭异常不会触发自抑制并打断其余条目释放。
+     */
+    @Test
+    void repeatedReleaseFailureDoesNotSkipRemainingResources() {
+        ScriptExecutor executor = mock(ScriptExecutor.class);
+        when(executor.getType()).thenReturn(ScriptType.GROOVY);
+        RuntimeException failure = new IllegalStateException("fixture cleanup");
+        doThrow(failure).when(executor).release(any());
+        ScriptCache cache = new ScriptCache(3);
+        cache.put("one", "one", new Object(), executor);
+        cache.put("two", "two", new Object(), executor);
+        cache.put("three", "three", new Object(), executor);
+        assertThatThrownBy(cache::close).isSameAs(failure);
+        verify(executor, times(3)).release(any());
+    }
 
     /**
      * 验证接管外部编译产物后不重复编译，并拒绝重复转移同一产物。

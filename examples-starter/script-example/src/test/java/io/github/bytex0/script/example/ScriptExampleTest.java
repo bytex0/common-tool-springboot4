@@ -78,4 +78,17 @@ class ScriptExampleTest {
                 .andExpect(jsonPath("$.data.valid").value(true));
         mvc.perform(get("/api/script/typed/validate").param("valid", "false")).andExpect(status().isBadRequest());
     }
+
+    /**
+     * 验证类型化超时返回 504，取消后线程和缓存仍可接受正常请求。
+     *
+     * @throws Exception 请求执行失败
+     */
+    @Test
+    void typedTimeoutDoesNotPreventLaterExecution() throws Exception {
+        mvc.perform(get("/api/script/typed/timeout")).andExpect(status().isGatewayTimeout())
+                .andExpect(jsonPath("$.code").value(504));
+        mvc.perform(get("/api/script/typed/run").param("a", "20").param("b", "22"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.value").value(42));
+    }
 }

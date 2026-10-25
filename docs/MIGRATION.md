@@ -33,7 +33,11 @@
 完成原公开入口对照与安全默认值说明。全量 396 项 Java 测试、20 项基础示例真实检查、
 9 项 Python 测试及坐标/JAR 检查通过；真实 Nacos 使用 SDK 3.1.0 和隔离服务端 3.2.3。
 详见 [基础工具功能对照](../common-tool-spring-boot-starter/MIGRATION.md)。
-剩余待补齐模块为 script、dynamic-threadpool，随后按 [连续迁移批次](CONTINUOUS-MIGRATION-PLAN.md)
+2026-10-25 Script 已完成剩余取消、缓存 API、旧配置名称和 Ivy 依赖解析验收。
+修复清除中断后任务继续执行/刷新缓存、关闭等待与资源释放自抑制问题。
+全量 405 项 Java 测试、脚本 13 项真实检查、10 项 Python 测试及坐标/JAR 检查通过，
+详见 [脚本功能对照](../script-spring-boot-starter/MIGRATION.md)。
+剩余待补齐模块为 dynamic-threadpool，随后按 [连续迁移批次](CONTINUOUS-MIGRATION-PLAN.md)
 执行后续十个，不将本次基础补齐计入新增数量。
 
 ## 原项目观察
